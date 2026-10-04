@@ -49,7 +49,25 @@ const CATEGORY_ICON: Record<string, string> = {
   Autre: "✨",
 };
 
-export function ShopPanel({ shop, balance, pendingXp }: { shop: Shop; balance: number; pendingXp: number }) {
+/** Estimation lisible du temps pour gagner `missing` pièces au rythme actuel. */
+function eta(missing: number, dailyAvg: number): string {
+  if (dailyAvg <= 0) return "";
+  const days = Math.ceil(missing / dailyAvg);
+  return days <= 1 ? " · ≈ 1 jour" : ` · ≈ ${days} jours`;
+}
+
+export function ShopPanel({
+  shop,
+  balance,
+  pendingXp,
+  dailyAvg,
+}: {
+  shop: Shop;
+  balance: number;
+  pendingXp: number;
+  /** XP moyen par jour (7 derniers jours), pour estimer le temps d'épargne. */
+  dailyAvg: number;
+}) {
   const [selected, setSelected] = useState<Reward | null>(null);
   const [adding, setAdding] = useState(false);
   const [filter, setFilter] = useState<string>("Tout");
@@ -93,7 +111,10 @@ export function ShopPanel({ shop, balance, pendingXp }: { shop: Shop; balance: n
         {goal && !inDebt && (
           <div className="mt-3 text-left">
             <div className="mb-1 flex justify-between text-xs">
-              <span className="truncate text-dim">🎯 Prochain objectif : {goal.name}</span>
+              <span className="truncate text-dim">
+                🎯 {goal.name}
+                {eta(goal.cost - balance, dailyAvg)}
+              </span>
               <span className="ml-2 shrink-0 font-bold">
                 {balance}/{goal.cost}
               </span>
@@ -146,7 +167,7 @@ export function ShopPanel({ shop, balance, pendingXp }: { shop: Shop; balance: n
                     <span className={`block truncate font-medium ${affordable ? "" : "text-dim"}`}>{r.name}</span>
                     <span className="text-xs text-dim">
                       {r.category ?? ""}
-                      {!affordable && !inDebt && ` · encore ${r.cost - balance}`}
+                      {!affordable && !inDebt && ` · encore ${r.cost - balance}${eta(r.cost - balance, dailyAvg)}`}
                     </span>
                   </span>
                   <span

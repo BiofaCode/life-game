@@ -167,7 +167,29 @@ export async function getXpStats(): Promise<XpStats> {
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 5);
 
-  return { total, today: byDay.get(today) ?? 0, last7, activeStreak, bestDay, entries: rows.length, recent };
+  // Semaine du lundi au dimanche.
+  const weekday = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7; // 0 = lundi
+  const monday = addDays(today, -weekday);
+  let week = 0;
+  let lastWeek = 0;
+  for (const [d, xp] of byDay) {
+    if (d >= monday && d <= today) week += xp;
+    else if (d >= addDays(monday, -7) && d < monday) lastWeek += xp;
+  }
+  const dailyAvg = last7.reduce((s, d) => s + d.xp, 0) / 7;
+
+  return {
+    total,
+    today: byDay.get(today) ?? 0,
+    last7,
+    activeStreak,
+    bestDay,
+    entries: rows.length,
+    recent,
+    week,
+    lastWeek,
+    dailyAvg,
+  };
 }
 
 /** Quêtes À faire / En cours, plus celles complétées aujourd'hui (pour pouvoir les décocher). */
