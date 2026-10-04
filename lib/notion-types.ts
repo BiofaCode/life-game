@@ -53,6 +53,8 @@ export interface Habit {
   xp: number;
   frequency: string | null;
   lastDone: string | null;
+  /** La série casse si l'habitude n'est pas faite aujourd'hui. */
+  atRisk: boolean;
   /** Statut posé aujourd'hui, sinon null. */
   today: string | null;
 }

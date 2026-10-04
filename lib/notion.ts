@@ -1,7 +1,7 @@
 import "server-only";
 import { Client } from "@notionhq/client";
 import { DATA_SOURCES, TIMEZONE } from "./config";
-import { currentStreak, onCheck, onUncheck } from "./streaks";
+import { currentStreak, onCheck, onUncheck, streakAtRisk } from "./streaks";
 import {
   HABIT_STATUS,
   PROJECT_STATUS,
@@ -224,10 +224,12 @@ export async function getHabits(): Promise<Habit[]> {
     .map((r) => {
       const frequency = select(r.props["Fréquence"]);
       const lastDone = date(r.props[LAST_DONE])?.slice(0, 10) ?? null;
+      const streak = currentStreak(num(r.props["Streak actuel"]) ?? 0, lastDone, today, frequency);
       return {
         id: r.id,
         name: title(r.props["Habitude"]),
-        streak: currentStreak(num(r.props["Streak actuel"]) ?? 0, lastDone, today, frequency),
+        streak,
+        atRisk: streakAtRisk(streak, lastDone, today, frequency),
         best: num(r.props["Meilleur streak"]) ?? 0,
         xp: num(r.props["XP par réalisation"]) ?? 0,
         frequency,
@@ -236,7 +238,7 @@ export async function getHabits(): Promise<Habit[]> {
         today: editedToday(r, today) ? select(propByPrefix(r.props, HABIT_STATUS_PREFIX)) : null,
       };
     })
-    .sort((a, b) => b.streak - a.streak || b.best - a.best);
+    .sort((a, b) => Number(b.atRisk) - Number(a.atRisk) || b.streak - a.streak || b.best - a.best);
 }
 
 /** Projets en cours, en pause et idées (les terminés/abandonnés sont exclus). */

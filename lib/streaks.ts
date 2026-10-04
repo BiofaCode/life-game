@@ -47,3 +47,8 @@ export function onUncheck(s: StreakState, today: string): StreakState {
   const best = s.best === s.streak && s.best > streak ? streak : s.best;
   return { streak, best, lastDone: streak > 0 ? addDays(today, -1) : null };
 }
+
+/** Série en danger : elle casse si l'habitude n'est pas faite aujourd'hui. */
+export function streakAtRisk(streak: number, lastDone: string | null, today: string, frequency: string | null): boolean {
+  return streak > 0 && lastDone !== null && lastDone !== today && dayDiff(lastDone, today) >= allowedGap(frequency);
+}
