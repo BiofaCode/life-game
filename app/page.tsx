@@ -3,6 +3,7 @@ import { levelFromXp } from "@/lib/config";
 import { dayDiff, formatDate } from "@/lib/format";
 import { getHabits, getProjects, getQuests, getXpStats, todayISO } from "@/lib/notion";
 import { HABIT_STATUS } from "@/lib/notion-types";
+import { AddQuest } from "@/components/AddQuest";
 import { HabitList } from "@/components/HabitList";
 import { ProjectCard } from "@/components/ProjectCard";
 import { QuestBoard } from "@/components/QuestBoard";
@@ -56,6 +57,7 @@ export default async function Home() {
       <Section title={`🔥 Habitudes${habits ? ` · ${habitsDone}/${habits.length}` : ""}`}>
         {habits ? <HabitList habits={habits} /> : <ErrorCard what="les habitudes" />}
       </Section>
+      <AddQuest today={today} />
     </>
   );
 

@@ -1,0 +1,176 @@
+"use client";
+
+import { useActionState, useEffect, useRef, useState } from "react";
+import { addQuest } from "@/app/actions";
+import { QUEST_PRIORITIES, QUEST_ZONES } from "@/lib/notion-types";
+import { zoneEmoji } from "@/lib/format";
+import { toast } from "./Toast";
+
+const XP_CHOICES = [5, 10, 15, 25, 50];
+
+function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function Chip({
+  name,
+  value,
+  checked,
+  onChange,
+  children,
+}: {
+  name: string;
+  value: string;
+  checked: boolean;
+  onChange?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label
+      className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm ${
+        checked ? "border-gold bg-gold/15 text-gold" : "border-edge text-dim"
+      }`}
+    >
+      <input type="radio" name={name} value={value} checked={checked} onChange={onChange} className="sr-only" />
+      {children}
+    </label>
+  );
+}
+
+export function AddQuest({ today }: { today: string }) {
+  const [open, setOpen] = useState(false);
+  const [priority, setPriority] = useState<string>("📌 Normale");
+  const [xp, setXp] = useState(15);
+  const [due, setDue] = useState(today);
+  const [state, action, pending] = useActionState(addQuest, null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state?.ok) {
+      toast("✨ Quête ajoutée");
+      formRef.current?.reset();
+      setDue(today);
+      setOpen(false);
+    }
+  }, [state, today]);
+
+  const dueChoices = [
+    { label: "Aujourd'hui", value: today },
+    { label: "Demain", value: addDays(today, 1) },
+    { label: "Sans date", value: "" },
+  ];
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="Nouvelle quête"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 z-30 flex size-14 items-center justify-center rounded-full bg-xp text-3xl font-light text-white shadow-lg shadow-xp/30 active:scale-95"
+      >
+        +
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={() => setOpen(false)}>
+          <form
+            ref={formRef}
+            action={action}
+            onClick={(e) => e.stopPropagation()}
+            className="mx-auto max-h-[90dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-t-3xl border-t border-edge bg-panel p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-black">⚔️ Nouvelle quête</h2>
+              <button type="button" onClick={() => setOpen(false)} className="px-2 text-2xl text-dim" aria-label="Fermer">
+                ×
+              </button>
+            </div>
+
+            <input
+              name="name"
+              required
+              autoFocus
+              maxLength={200}
+              placeholder="Ex : Appeler 2 prospects"
+              className="w-full rounded-xl border border-edge bg-black/40 px-4 py-3 text-base outline-none focus:border-xp"
+            />
+
+            <fieldset>
+              <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-dim">Priorité</legend>
+              <div className="flex flex-wrap gap-2">
+                {QUEST_PRIORITIES.map((p) => (
+                  <Chip key={p} name="priority" value={p} checked={priority === p} onChange={() => setPriority(p)}>
+                    {p}
+                  </Chip>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-dim">XP</legend>
+              <div className="flex flex-wrap gap-2">
+                {XP_CHOICES.map((v) => (
+                  <Chip key={v} name="xp" value={String(v)} checked={xp === v} onChange={() => setXp(v)}>
+                    +{v}
+                  </Chip>
+                ))}
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-dim">Échéance</legend>
+              <div className="flex flex-wrap items-center gap-2">
+                {dueChoices.map((c) => (
+                  <button
+                    key={c.label}
+                    type="button"
+                    onClick={() => setDue(c.value)}
+                    className={`rounded-full border px-3 py-1.5 text-sm ${
+                      due === c.value ? "border-gold bg-gold/15 text-gold" : "border-edge text-dim"
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+                <input
+                  type="date"
+                  name="due"
+                  value={due}
+                  onChange={(e) => setDue(e.target.value)}
+                  className="rounded-full border border-edge bg-black/40 px-3 py-1.5 text-sm text-ink [color-scheme:dark]"
+                />
+              </div>
+            </fieldset>
+
+            <label className="block">
+              <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-dim">Zone</span>
+              <select
+                name="zone"
+                defaultValue=""
+                className="w-full rounded-xl border border-edge bg-black/40 px-4 py-3 text-base [color-scheme:dark]"
+              >
+                <option value="">— Aucune —</option>
+                {QUEST_ZONES.map((z) => (
+                  <option key={z} value={z}>
+                    {zoneEmoji(z)} {z}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            {state && !state.ok && <p className="text-sm text-danger">{state.error}</p>}
+
+            <button
+              disabled={pending}
+              className="w-full rounded-xl bg-xp py-3.5 font-bold text-white active:scale-[0.98] disabled:opacity-60"
+            >
+              {pending ? "Création…" : "Ajouter la quête"}
+            </button>
+          </form>
+        </div>
+      )}
+    </>
+  );
+}

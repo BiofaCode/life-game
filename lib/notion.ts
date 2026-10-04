@@ -5,6 +5,7 @@ import {
   HABIT_STATUS,
   QUEST_STATUS,
   type DayXp,
+  type NewQuest,
   type Habit,
   type Project,
   type Quest,
@@ -274,5 +275,20 @@ export async function setHabitDone(pageId: string, done: boolean): Promise<void>
   await notion().pages.update({
     page_id: pageId,
     properties: { [status.id]: { select: { name: done ? HABIT_STATUS.done : HABIT_STATUS.todo } } },
+  });
+}
+
+/** Crée une quête 🔴 À faire. Les valeurs sont validées contre les options connues. */
+export async function createQuest(q: NewQuest): Promise<void> {
+  await notion().pages.create({
+    parent: { type: "data_source_id", data_source_id: DATA_SOURCES.quests },
+    properties: {
+      "Quête": { title: [{ text: { content: q.name } }] },
+      Statut: { select: { name: QUEST_STATUS.todo } },
+      "Priorité": { select: { name: q.priority } },
+      XP: { number: q.xp },
+      ...(q.zone ? { Zone: { select: { name: q.zone } } } : {}),
+      ...(q.due ? { "Échéance": { date: { start: q.due } } } : {}),
+    },
   });
 }
