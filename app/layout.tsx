@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import "./globals.css";
 import { Toaster } from "@/components/Toast";
+import { resolveTheme, THEME_COOKIE } from "@/lib/themes";
 
 export const metadata: Metadata = {
   title: "Life Game",
@@ -9,16 +11,20 @@ export const metadata: Metadata = {
   formatDetection: { telephone: false },
 };
 
-export const viewport: Viewport = {
-  themeColor: "#0b0d17",
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-};
+export async function generateViewport(): Promise<Viewport> {
+  const theme = resolveTheme((await cookies()).get(THEME_COOKIE)?.value);
+  return {
+    themeColor: theme.bg,
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+  };
+}
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const theme = resolveTheme((await cookies()).get(THEME_COOKIE)?.value);
   return (
-    <html lang="fr">
+    <html lang="fr" data-theme={theme.id}>
       <body className="font-sans antialiased">
         {children}
         <Toaster />

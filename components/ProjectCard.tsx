@@ -15,7 +15,7 @@ export function ProjectCard({ p }: { p: Project }) {
   return (
     <article className={`rounded-2xl border bg-panel p-4 ${p.overdue ? "border-danger/70" : "border-edge"}`}>
       <div className="flex items-start gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-black/30 text-xl">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-well text-xl">
           {zoneEmoji(p.zone)}
         </span>
         <div className="min-w-0 flex-1">
@@ -47,7 +47,7 @@ export function ProjectCard({ p }: { p: Project }) {
           {dl?.text ?? "Pas de date de fin"}
           {p.end && <span className="font-normal text-dim"> · {formatDate(p.end)}</span>}
         </span>
-        {p.xp > 0 && <span className="font-bold text-violet-300">{p.xp} XP</span>}
+        {p.xp > 0 && <span className="font-bold text-xp-soft">{p.xp} XP</span>}
       </div>
     </article>
   );

@@ -19,7 +19,7 @@ export function Bar({ value, color = "bg-xp" }: { value: number; color?: string 
       aria-valuenow={pct}
       aria-valuemin={0}
       aria-valuemax={100}
-      className="h-3 w-full overflow-hidden rounded-full bg-black/40"
+      className="h-3 w-full overflow-hidden rounded-full bg-well"
     >
       <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
     </div>

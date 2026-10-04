@@ -61,7 +61,7 @@ export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }
           </span>
           <span
             className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${
-              d ? "bg-ok/15 text-ok" : "bg-xp/20 text-violet-300"
+              d ? "bg-ok/15 text-ok" : "bg-xp/15 text-xp-soft"
             }`}
           >
             +{q.xp}

@@ -68,7 +68,7 @@ export function AddQuest({ today }: { today: string }) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Nouvelle quête"
-        className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 z-30 flex size-14 items-center justify-center rounded-full bg-xp text-3xl font-light text-white shadow-lg shadow-xp/30 active:scale-95"
+        className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] right-4 z-30 flex size-14 items-center justify-center rounded-full bg-xp text-3xl font-light text-xp-ink shadow-lg shadow-xp/30 active:scale-95"
       >
         +
       </button>
@@ -94,7 +94,7 @@ export function AddQuest({ today }: { today: string }) {
               autoFocus
               maxLength={200}
               placeholder="Ex : Appeler 2 prospects"
-              className="w-full rounded-xl border border-edge bg-black/40 px-4 py-3 text-base outline-none focus:border-xp"
+              className="w-full rounded-xl border border-edge bg-well px-4 py-3 text-base outline-none focus:border-xp"
             />
 
             <fieldset>
@@ -139,7 +139,7 @@ export function AddQuest({ today }: { today: string }) {
                   name="due"
                   value={due}
                   onChange={(e) => setDue(e.target.value)}
-                  className="rounded-full border border-edge bg-black/40 px-3 py-1.5 text-sm text-ink [color-scheme:dark]"
+                  className="rounded-full border border-edge bg-well px-3 py-1.5 text-sm text-ink"
                 />
               </div>
             </fieldset>
@@ -149,7 +149,7 @@ export function AddQuest({ today }: { today: string }) {
               <select
                 name="zone"
                 defaultValue=""
-                className="w-full rounded-xl border border-edge bg-black/40 px-4 py-3 text-base [color-scheme:dark]"
+                className="w-full rounded-xl border border-edge bg-well px-4 py-3 text-base"
               >
                 <option value="">— Aucune —</option>
                 {QUEST_ZONES.map((z) => (
@@ -164,7 +164,7 @@ export function AddQuest({ today }: { today: string }) {
 
             <button
               disabled={pending}
-              className="w-full rounded-xl bg-xp py-3.5 font-bold text-white active:scale-[0.98] disabled:opacity-60"
+              className="w-full rounded-xl bg-xp py-3.5 font-bold text-xp-ink active:scale-[0.98] disabled:opacity-60"
             >
               {pending ? "Création…" : "Ajouter la quête"}
             </button>

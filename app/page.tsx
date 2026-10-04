@@ -9,6 +9,7 @@ import { ProjectCard } from "@/components/ProjectCard";
 import { QuestBoard } from "@/components/QuestBoard";
 import { RefreshButton } from "@/components/RefreshButton";
 import { Tabs } from "@/components/Tabs";
+import { ThemePicker } from "@/components/ThemePicker";
 import { XpChart } from "@/components/XpChart";
 import { Bar, Card, Empty, ErrorCard, Section } from "@/components/ui";
 
@@ -114,6 +115,9 @@ export default async function Home() {
           </div>
         </Section>
       )}
+      <Section title="🎨 Thème">
+        <ThemePicker />
+      </Section>
     </>
   );
 
@@ -127,9 +131,9 @@ export default async function Home() {
 
       <header>
         {lvl && xp ? (
-          <Card className="bg-gradient-to-br from-panel to-[#1b1840] p-3">
+          <Card className="bg-gradient-to-br from-panel to-hero p-3">
             <div className="flex items-center gap-3">
-              <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-black/30">
+              <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-well">
                 <span className="text-[9px] font-bold uppercase tracking-widest text-dim">Niv</span>
                 <span className="text-2xl font-black leading-none text-gold">{lvl.level}</span>
               </div>
@@ -163,7 +167,7 @@ export default async function Home() {
         tabs={[
           { id: "today", label: "Aujourd'hui", icon: "⚔️", badge: lateCount, content: todayTab },
           { id: "projects", label: "Projets", icon: "🚀", badge: overdueProjects, content: projectsTab },
-          { id: "stats", label: "Stats", icon: "📊", content: statsTab },
+          { id: "stats", label: "Profil", icon: "📊", content: statsTab },
         ]}
       />
     </main>
