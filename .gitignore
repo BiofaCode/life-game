@@ -153,3 +153,4 @@ vite.config.ts.timestamp-*
 next-env.d.ts
 .env*.local
 .env
+*.tsbuildinfo
