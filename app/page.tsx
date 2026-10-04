@@ -1,9 +1,10 @@
 import { authEnabled } from "@/lib/auth";
 import { levelFromXp } from "@/lib/config";
 import { dayDiff, formatDate } from "@/lib/format";
-import { getHabits, getProjects, getQuests, getXpStats, todayISO } from "@/lib/notion";
+import { getHabits, getProjects, getQuests, getXpStats, getZoneXp, todayISO } from "@/lib/notion";
 import { HABIT_STATUS, PROJECT_STATUS } from "@/lib/notion-types";
 import { AddQuest } from "@/components/AddQuest";
+import { Attributes } from "@/components/Attributes";
 import { CloseDay } from "@/components/CloseDay";
 import { DailyGoal } from "@/components/DailyGoal";
 import { HabitList } from "@/components/HabitList";
@@ -13,7 +14,8 @@ import { RefreshButton } from "@/components/RefreshButton";
 import { Tabs } from "@/components/Tabs";
 import { ThemePicker } from "@/components/ThemePicker";
 import { XpChart } from "@/components/XpChart";
-import { Bar, Card, ErrorCard, Section } from "@/components/ui";
+import { XpHeader } from "@/components/XpHeader";
+import { Card, ErrorCard, Section } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -30,19 +32,21 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 export default async function Home() {
-  const [xpR, questsR, habitsR, projectsR] = await Promise.allSettled([
+  const [xpR, questsR, habitsR, projectsR, zoneR] = await Promise.allSettled([
     getXpStats(),
     getQuests(),
     getHabits(),
     getProjects(),
+    getZoneXp(),
   ]);
-  for (const r of [xpR, questsR, habitsR, projectsR]) {
+  for (const r of [xpR, questsR, habitsR, projectsR, zoneR]) {
     if (r.status === "rejected") console.error(r.reason);
   }
   const xp = ok(xpR);
   const quests = ok(questsR);
   const habits = ok(habitsR);
   const projects = ok(projectsR);
+  const zoneXp = ok(zoneR);
   const lvl = xp ? levelFromXp(xp.total) : null;
   const today = todayISO();
 
@@ -50,6 +54,11 @@ export default async function Home() {
   const overdueProjects = projects?.filter((p) => p.overdue).length ?? 0;
   const questsDone = quests?.filter((q) => q.done).length ?? 0;
   const habitsDone = habits?.filter((h) => h.today === HABIT_STATUS.done).length ?? 0;
+  // XP gagné aujourd'hui dans l'app, pas encore inscrit au Journal.
+  const earnedToday =
+    (quests?.filter((q) => q.done).reduce((s, q) => s + q.xp, 0) ?? 0) +
+    (habits?.filter((h) => h.today === HABIT_STATUS.done).reduce((s, h) => s + h.xp, 0) ?? 0);
+  const pendingXp = Math.max(0, Math.round(earnedToday - (xp?.today ?? 0)));
   const bestHabit = habits?.reduce<(typeof habits)[number] | null>((b, h) => (!b || h.best > b.best ? h : b), null);
 
   const todayTab = (
@@ -61,7 +70,7 @@ export default async function Home() {
       <Section title={`🔥 Habitudes${habits ? ` · ${habitsDone}/${habits.length}` : ""}`}>
         {habits ? <HabitList habits={habits} /> : <ErrorCard what="les habitudes" />}
       </Section>
-      {quests && habits && xp && <CloseDay quests={quests} habits={habits} journalToday={xp.today} />}
+      {quests && habits && xp && <CloseDay quests={quests} habits={habits} journalToday={xp.today} pendingXp={pendingXp} />}
       <AddQuest today={today} />
     </>
   );
@@ -75,6 +84,11 @@ export default async function Home() {
 
   const statsTab = (
     <>
+      {zoneXp && (
+        <Section title="🧙 Personnage">
+          <Attributes zoneXp={zoneXp} />
+        </Section>
+      )}
       <Section title="📊 XP des 7 derniers jours">
         {xp ? (
           <Card>
@@ -138,28 +152,7 @@ export default async function Home() {
 
       <header>
         {lvl && xp ? (
-          <Card className="bg-gradient-to-br from-panel to-hero p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex size-14 shrink-0 flex-col items-center justify-center rounded-2xl border-2 border-gold/60 bg-well">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-dim">Niv</span>
-                <span className="text-2xl font-black leading-none text-gold">{lvl.level}</span>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="mb-1.5 flex items-baseline justify-between text-xs text-dim">
-                  <span>
-                    {Math.round(lvl.xpIntoLevel)} / {lvl.xpForNext} XP
-                  </span>
-                  {xp.today > 0 ? (
-                    <span className="font-bold text-ok">+{Math.round(xp.today)} aujourd&apos;hui</span>
-                  ) : (
-                    <span>{Math.round(lvl.totalXp)} XP total</span>
-                  )}
-                </div>
-                <Bar value={lvl.progress} />
-              </div>
-              <RefreshButton />
-            </div>
-          </Card>
+          <XpHeader total={xp.total} today={xp.today} pending={pendingXp} />
         ) : (
           <div className="flex items-center gap-3">
             <div className="flex-1">

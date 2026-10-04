@@ -411,3 +411,17 @@ export async function createJournalEntry(e: JournalEntry): Promise<void> {
     },
   });
 }
+
+/** XP total des quêtes terminées, par zone (base des attributs RPG). */
+export async function getZoneXp(): Promise<Record<string, number>> {
+  const rows = await queryAll(DATA_SOURCES.quests, {
+    property: "Statut",
+    select: { equals: QUEST_STATUS.done },
+  });
+  const out: Record<string, number> = {};
+  for (const r of rows) {
+    const zone = select(r.props["Zone"]);
+    if (zone) out[zone] = (out[zone] ?? 0) + (num(r.props["XP"]) ?? 0);
+  }
+  return out;
+}

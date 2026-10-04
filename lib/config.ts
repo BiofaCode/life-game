@@ -56,3 +56,29 @@ export function levelFromXp(totalXp: number): LevelInfo {
   const xpIntoLevel = xp - start;
   return { level, totalXp: xp, xpIntoLevel, xpForNext, progress: xpIntoLevel / xpForNext };
 }
+
+/* -------------------------------------------------------------------------
+ * Attributs RPG : chaque zone de vie nourrit un attribut avec l'XP des
+ * quêtes terminées. Courbe plus courte que le niveau global.
+ * ---------------------------------------------------------------------- */
+export const ATTRIBUTES = [
+  { zone: "Sport & Corps", name: "Force", icon: "💪" },
+  { zone: "Études & Savoir", name: "Intellect", icon: "🧠" },
+  { zone: "Travail & Carrière", name: "Ambition", icon: "💼" },
+  { zone: "Agence Marketing", name: "Commerce", icon: "📣" },
+  { zone: "Projets Perso", name: "Créativité", icon: "🎨" },
+  { zone: "Social & Relations", name: "Charisme", icon: "🤝" },
+  { zone: "Mental & Bien-être", name: "Sagesse", icon: "🧘" },
+] as const;
+
+export const ATTRIBUTE_BASE_XP = 25;
+
+/** Niveau d'attribut : même forme que le niveau global, avec ATTRIBUTE_BASE_XP. */
+export function attributeLevel(xp: number): { level: number; progress: number } {
+  const x = Math.max(0, xp);
+  let level = Math.floor((1 + Math.sqrt(1 + (8 * x) / ATTRIBUTE_BASE_XP)) / 2);
+  const at = (n: number) => (ATTRIBUTE_BASE_XP * n * (n - 1)) / 2;
+  while (at(level + 1) <= x) level++;
+  while (level > 1 && at(level) > x) level--;
+  return { level, progress: (x - at(level)) / (at(level + 1) - at(level)) };
+}
