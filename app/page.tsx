@@ -88,7 +88,7 @@ export default async function Home() {
 
   const shopTab =
     shop && xp ? (
-      <ShopPanel shop={shop} balance={coinBalance(xp.total, shop.spent)} pendingXp={pendingXp} />
+      <ShopPanel shop={shop} balance={coinBalance(xp.total, shop.spent)} pendingXp={pendingXp} dailyAvg={xp.dailyAvg} />
     ) : (
       <div className="mt-4">
         <ErrorCard what="la boutique (partage « 🛒 Boutique de Récompenses » et « 🧾 Achats » avec l'intégration)" />
@@ -100,6 +100,28 @@ export default async function Home() {
       {zoneXp && (
         <Section title="🧙 Personnage">
           <Attributes zoneXp={zoneXp} />
+        </Section>
+      )}
+      {xp && (
+        <Section title="📅 Cette semaine">
+          <div className="flex items-center justify-between rounded-2xl border border-edge bg-panel p-4">
+            <div>
+              <p className="text-3xl font-black">{Math.round(xp.week)} XP</p>
+              <p className="text-xs text-dim">semaine dernière : {Math.round(xp.lastWeek)} XP</p>
+            </div>
+            {xp.lastWeek > 0 || xp.week > 0 ? (
+              <span
+                className={`rounded-full px-3 py-1.5 text-sm font-black ${
+                  xp.week >= xp.lastWeek ? "bg-ok/15 text-ok" : "bg-danger/15 text-danger"
+                }`}
+              >
+                {xp.week >= xp.lastWeek ? "▲" : "▼"}{" "}
+                {xp.lastWeek > 0
+                  ? `${Math.abs(Math.round(((xp.week - xp.lastWeek) / xp.lastWeek) * 100))} %`
+                  : "nouveau"}
+              </span>
+            ) : null}
+          </div>
         </Section>
       )}
       <Section title="📊 XP des 7 derniers jours">

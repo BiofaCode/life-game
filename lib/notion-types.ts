@@ -35,6 +35,11 @@ export interface XpStats {
   activeStreak: number;
   bestDay: DayXp | null;
   entries: number;
+  /** XP de la semaine en cours (lundi → aujourd'hui) et de la semaine précédente. */
+  week: number;
+  lastWeek: number;
+  /** Moyenne d'XP par jour sur les 7 derniers jours. */
+  dailyAvg: number;
   /** 5 dernières entrées du Journal. */
   recent: { id: string; title: string; date: string; xp: number; mood: string | null; type: string | null }[];
 }
