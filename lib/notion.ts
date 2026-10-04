@@ -292,3 +292,12 @@ export async function createQuest(q: NewQuest): Promise<void> {
     },
   });
 }
+
+/** Met à jour la progression (0–100) d'un projet. */
+export async function setProjectProgress(pageId: string, progress: number): Promise<void> {
+  await retrieveIn(pageId, DATA_SOURCES.projects);
+  await notion().pages.update({
+    page_id: pageId,
+    properties: { Progression: { number: Math.min(100, Math.max(0, Math.round(progress))) } },
+  });
+}

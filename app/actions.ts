@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { isAuthorized, SESSION_COOKIE } from "@/lib/auth";
-import { createQuest, setHabitDone, setQuestDone } from "@/lib/notion";
+import { createQuest, setHabitDone, setProjectProgress, setQuestDone } from "@/lib/notion";
 import { QUEST_PRIORITIES, QUEST_ZONES } from "@/lib/notion-types";
 
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
@@ -29,6 +29,11 @@ async function run(pageId: string, fn: () => Promise<void>): Promise<ActionResul
 
 export async function toggleQuest(pageId: string, done: boolean): Promise<ActionResult> {
   return run(pageId, () => setQuestDone(pageId, done === true));
+}
+
+export async function updateProgress(pageId: string, progress: number): Promise<ActionResult> {
+  if (!Number.isFinite(progress)) return { ok: false, error: "Valeur invalide" };
+  return run(pageId, () => setProjectProgress(pageId, progress));
 }
 
 export async function toggleHabit(pageId: string, done: boolean): Promise<ActionResult> {

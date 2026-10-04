@@ -1,6 +1,6 @@
 import { formatDate, priorityIcon, zoneEmoji } from "@/lib/format";
 import type { Project } from "@/lib/notion-types";
-import { Bar } from "./ui";
+import { ProgressStepper } from "./ProgressStepper";
 
 function deadline(p: Project): { text: string; tone: string } | null {
   if (p.daysLeft === null) return null;
@@ -29,13 +29,16 @@ export function ProjectCard({ p }: { p: Project }) {
           </h3>
           {p.zone && <p className="text-xs text-dim">{p.zone}</p>}
         </div>
-        <span className="shrink-0 text-xl font-black">{Math.round(p.progress)}%</span>
       </div>
 
       {p.description && <p className="mt-3 line-clamp-3 text-sm text-dim">{p.description}</p>}
 
       <div className="mt-3">
-        <Bar value={p.progress / 100} color={p.overdue ? "bg-danger" : p.progress >= 100 ? "bg-gold" : "bg-ok"} />
+        <ProgressStepper
+          id={p.id}
+          progress={p.progress}
+          color={p.overdue ? "bg-danger" : p.progress >= 100 ? "bg-gold" : "bg-ok"}
+        />
       </div>
 
       <div className="mt-2 flex items-center justify-between text-xs">
