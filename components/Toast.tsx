@@ -46,7 +46,7 @@ export function Toaster() {
       style={{ animationDuration: msg.action ? "4s" : undefined }}
       className={`toast-pop fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] z-50 mx-auto flex w-fit max-w-[calc(100%-2rem)] items-center gap-3 rounded-full py-2.5 pl-5 text-sm font-bold shadow-lg ${
         msg.action ? "pr-2" : "pointer-events-none pr-5"
-      } ${msg.tone === "error" ? "bg-danger text-white" : "bg-gold text-black"}`}
+      } ${msg.tone === "error" ? "bg-danger text-white" : "bg-gold text-bg"}`}
     >
       <span className="truncate">{msg.text}</span>
       {msg.action && (
@@ -56,7 +56,7 @@ export function Toaster() {
             msg.action?.onClick();
             setMsg(null);
           }}
-          className="shrink-0 rounded-full bg-black/80 px-3 py-1.5 text-xs text-gold active:scale-95"
+          className="shrink-0 rounded-full bg-bg/85 px-3 py-1.5 text-xs text-gold active:scale-95"
         >
           {msg.action.label}
         </button>

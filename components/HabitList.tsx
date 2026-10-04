@@ -39,7 +39,7 @@ export function HabitList({ habits }: { habits: Habit[] }) {
                 </span>
               </span>
               <span className="flex shrink-0 flex-col items-end text-xs leading-tight">
-                <span className="text-base font-black text-orange-400">🔥 {h.streak}</span>
+                <span className="text-base font-black text-streak">🔥 {h.streak}</span>
                 <span className="text-dim">record {h.best}</span>
               </span>
             </button>
