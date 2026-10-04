@@ -4,6 +4,7 @@ import { dayDiff, formatDate } from "@/lib/format";
 import { getHabits, getProjects, getQuests, getXpStats, todayISO } from "@/lib/notion";
 import { HABIT_STATUS } from "@/lib/notion-types";
 import { AddQuest } from "@/components/AddQuest";
+import { DailyGoal } from "@/components/DailyGoal";
 import { HabitList } from "@/components/HabitList";
 import { ProjectCard } from "@/components/ProjectCard";
 import { QuestBoard } from "@/components/QuestBoard";
@@ -52,6 +53,7 @@ export default async function Home() {
 
   const todayTab = (
     <>
+      {quests && habits && <DailyGoal quests={quests} habits={habits} today={today} />}
       <Section title={`⚔️ Quêtes${quests ? ` · ${questsDone} faite${questsDone > 1 ? "s" : ""}` : ""}`}>
         {quests ? <QuestBoard quests={quests} today={today} /> : <ErrorCard what="les quêtes" />}
       </Section>
@@ -122,7 +124,7 @@ export default async function Home() {
   );
 
   return (
-    <main className="mx-auto max-w-lg px-4 pb-28 pt-4">
+    <main className="mx-auto max-w-lg px-4 pb-40 pt-4">
       {!authEnabled() && (
         <p className="mb-3 rounded-xl border border-gold/50 bg-gold/10 px-3 py-2 text-xs text-gold">
           ⚠ App non protégée : ajoute APP_PASSWORD dans les variables Vercel.
