@@ -3,6 +3,7 @@ import { Client } from "@notionhq/client";
 import { DATA_SOURCES, TIMEZONE } from "./config";
 import {
   HABIT_STATUS,
+  PROJECT_STATUS,
   QUEST_STATUS,
   type DayXp,
   type NewQuest,
@@ -37,6 +38,7 @@ interface Row {
   id: string;
   props: Props;
   lastEdited: string;
+  url: string;
 }
 
 async function queryAll(
@@ -58,6 +60,7 @@ async function queryAll(
           id: r.id,
           props: r.properties as unknown as Props,
           lastEdited: "last_edited_time" in r ? r.last_edited_time : "",
+          url: "url" in r ? r.url : "",
         });
       }
     }
@@ -180,6 +183,9 @@ export async function getQuests(): Promise<Quest[]> {
           zone: select(r.props["Zone"]),
           due: date(r.props["Échéance"]),
           done: status === QUEST_STATUS.done,
+          difficulty: select(r.props["Difficulté"]),
+          notes: text(r.props["Notes"]),
+          url: r.url,
         },
       };
     })
@@ -211,11 +217,14 @@ export async function getHabits(): Promise<Habit[]> {
     .sort((a, b) => b.streak - a.streak || b.best - a.best);
 }
 
+/** Projets en cours, en pause et idées (les terminés/abandonnés sont exclus). */
 export async function getProjects(): Promise<Project[]> {
   const today = todayISO();
   const rows = await queryAll(DATA_SOURCES.projects, {
-    property: "Statut",
-    select: { equals: "🚀 En cours" },
+    or: [PROJECT_STATUS.active, PROJECT_STATUS.paused, PROJECT_STATUS.idea].map((s) => ({
+      property: "Statut",
+      select: { equals: s },
+    })),
   });
   return rows
     .map((r) => {
@@ -225,6 +234,8 @@ export async function getProjects(): Promise<Project[]> {
       return {
         id: r.id,
         name: title(r.props["Projet"]),
+        status: select(r.props["Statut"]),
+        url: r.url,
         progress,
         priority: select(r.props["Priorité"]),
         zone: select(r.props["Zone"]),
@@ -233,7 +244,12 @@ export async function getProjects(): Promise<Project[]> {
         start: date(r.props["Date début"]),
         end,
         daysLeft,
-        overdue: daysLeft !== null && daysLeft < 0 && progress < 100,
+        // Seul un projet en cours peut être « en retard ».
+        overdue:
+          select(r.props["Statut"]) === PROJECT_STATUS.active &&
+          daysLeft !== null &&
+          daysLeft < 0 &&
+          progress < 100,
       };
     })
     .sort(
@@ -264,6 +280,21 @@ export async function setQuestDone(pageId: string, done: boolean): Promise<void>
   await notion().pages.update({
     page_id: pageId,
     properties: { Statut: { select: { name: done ? QUEST_STATUS.done : QUEST_STATUS.todo } } },
+  });
+}
+
+/** Change le statut (À faire / En cours) et/ou l'échéance d'une quête. */
+export async function updateQuest(
+  pageId: string,
+  patch: { status?: string; due?: string | null },
+): Promise<void> {
+  await retrieveIn(pageId, DATA_SOURCES.quests);
+  await notion().pages.update({
+    page_id: pageId,
+    properties: {
+      ...(patch.status ? { Statut: { select: { name: patch.status } } } : {}),
+      ...(patch.due !== undefined ? { "Échéance": { date: patch.due ? { start: patch.due } : null } } : {}),
+    },
   });
 }
 
@@ -299,5 +330,25 @@ export async function setProjectProgress(pageId: string, progress: number): Prom
   await notion().pages.update({
     page_id: pageId,
     properties: { Progression: { number: Math.min(100, Math.max(0, Math.round(progress))) } },
+  });
+}
+
+const SETTABLE_PROJECT_STATUS: readonly string[] = [
+  PROJECT_STATUS.idea,
+  PROJECT_STATUS.active,
+  PROJECT_STATUS.paused,
+  PROJECT_STATUS.done,
+];
+
+/** Change le statut d'un projet (Idée / En cours / Pause / Terminé). */
+export async function setProjectStatus(pageId: string, status: string): Promise<void> {
+  if (!SETTABLE_PROJECT_STATUS.includes(status)) throw new Error("Statut invalide.");
+  await retrieveIn(pageId, DATA_SOURCES.projects);
+  await notion().pages.update({
+    page_id: pageId,
+    properties: {
+      Statut: { select: { name: status } },
+      ...(status === PROJECT_STATUS.done ? { Progression: { number: 100 } } : {}),
+    },
   });
 }

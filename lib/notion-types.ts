@@ -16,6 +16,9 @@ export interface Quest {
   due: string | null;
   /** Complétée (aujourd'hui). */
   done: boolean;
+  difficulty: string | null;
+  notes: string;
+  url: string;
 }
 
 export interface DayXp {
@@ -51,9 +54,18 @@ export interface Habit {
   today: string | null;
 }
 
+export const PROJECT_STATUS = {
+  idea: "🌱 Idée",
+  active: "🚀 En cours",
+  paused: "⏸️ Pause",
+  done: "✅ Terminé",
+} as const;
+
 export interface Project {
   id: string;
   name: string;
+  status: string | null;
+  url: string;
   progress: number;
   priority: string | null;
   zone: string | null;

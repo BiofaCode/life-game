@@ -3,16 +3,11 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { addQuest } from "@/app/actions";
 import { QUEST_PRIORITIES, QUEST_ZONES } from "@/lib/notion-types";
-import { zoneEmoji } from "@/lib/format";
+import { addDays, zoneEmoji } from "@/lib/format";
+import { Sheet } from "./Sheet";
 import { toast } from "./Toast";
 
 const XP_CHOICES = [5, 10, 15, 25, 50];
-
-function addDays(iso: string, n: number): string {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
 
 function Chip({
   name,
@@ -74,20 +69,8 @@ export function AddQuest({ today }: { today: string }) {
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/60" onClick={() => setOpen(false)}>
-          <form
-            ref={formRef}
-            action={action}
-            onClick={(e) => e.stopPropagation()}
-            className="mx-auto max-h-[90dvh] w-full max-w-lg space-y-4 overflow-y-auto rounded-t-3xl border-t border-edge bg-panel p-5 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]"
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-black">⚔️ Nouvelle quête</h2>
-              <button type="button" onClick={() => setOpen(false)} className="px-2 text-2xl text-dim" aria-label="Fermer">
-                ×
-              </button>
-            </div>
-
+        <Sheet title="⚔️ Nouvelle quête" onClose={() => setOpen(false)}>
+          <form ref={formRef} action={action} className="space-y-4">
             <input
               name="name"
               required
@@ -169,7 +152,7 @@ export function AddQuest({ today }: { today: string }) {
               {pending ? "Création…" : "Ajouter la quête"}
             </button>
           </form>
-        </div>
+        </Sheet>
       )}
     </>
   );
