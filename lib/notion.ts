@@ -1,6 +1,7 @@
 import "server-only";
 import { Client } from "@notionhq/client";
 import { DATA_SOURCES, TIMEZONE } from "./config";
+import { currentStreak, onCheck, onUncheck, streakAtRisk } from "./streaks";
 import {
   HABIT_STATUS,
   PROJECT_STATUS,
@@ -213,22 +214,31 @@ export async function getQuests(): Promise<Quest[]> {
 }
 
 const HABIT_STATUS_PREFIX = "Statut aujourd";
+/** Propriété date tenue à jour par l'app pour calculer les streaks. */
+const LAST_DONE = "Dernière réalisation";
 
 export async function getHabits(): Promise<Habit[]> {
   const today = todayISO();
   const rows = await queryAll(DATA_SOURCES.habits);
   return rows
-    .map((r) => ({
-      id: r.id,
-      name: title(r.props["Habitude"]),
-      streak: num(r.props["Streak actuel"]) ?? 0,
-      best: num(r.props["Meilleur streak"]) ?? 0,
-      xp: num(r.props["XP par réalisation"]) ?? 0,
-      frequency: select(r.props["Fréquence"]),
-      // Un statut posé un jour précédent ne vaut pas pour aujourd'hui.
-      today: editedToday(r, today) ? select(propByPrefix(r.props, HABIT_STATUS_PREFIX)) : null,
-    }))
-    .sort((a, b) => b.streak - a.streak || b.best - a.best);
+    .map((r) => {
+      const frequency = select(r.props["Fréquence"]);
+      const lastDone = date(r.props[LAST_DONE])?.slice(0, 10) ?? null;
+      const streak = currentStreak(num(r.props["Streak actuel"]) ?? 0, lastDone, today, frequency);
+      return {
+        id: r.id,
+        name: title(r.props["Habitude"]),
+        streak,
+        atRisk: streakAtRisk(streak, lastDone, today, frequency),
+        best: num(r.props["Meilleur streak"]) ?? 0,
+        xp: num(r.props["XP par réalisation"]) ?? 0,
+        frequency,
+        lastDone,
+        // Un statut posé un jour précédent ne vaut pas pour aujourd'hui.
+        today: editedToday(r, today) ? select(propByPrefix(r.props, HABIT_STATUS_PREFIX)) : null,
+      };
+    })
+    .sort((a, b) => Number(b.atRisk) - Number(a.atRisk) || b.streak - a.streak || b.best - a.best);
 }
 
 /** Projets en cours, en pause et idées (les terminés/abandonnés sont exclus). */
@@ -312,14 +322,33 @@ export async function updateQuest(
   });
 }
 
-/** Passe le « Statut aujourd'hui » d'une habitude à ✅ Fait ou ⏳ À faire. */
+/**
+ * Coche/décoche une habitude : « Statut aujourd'hui », et met à jour automatiquement
+ * Streak actuel, Meilleur streak et Dernière réalisation.
+ */
 export async function setHabitDone(pageId: string, done: boolean): Promise<void> {
   const props = await retrieveIn(pageId, DATA_SOURCES.habits);
   const status = propByPrefix(props, HABIT_STATUS_PREFIX);
   if (!status) throw new Error("Propriété « Statut aujourd'hui » introuvable.");
+
+  const today = todayISO();
+  const frequency = select(props["Fréquence"]);
+  const before = {
+    streak: num(props["Streak actuel"]) ?? 0,
+    best: num(props["Meilleur streak"]) ?? 0,
+    lastDone: date(props[LAST_DONE])?.slice(0, 10) ?? null,
+  };
+  const after = done ? onCheck(before, today, frequency) : onUncheck(before, today);
+
   await notion().pages.update({
     page_id: pageId,
-    properties: { [status.id]: { select: { name: done ? HABIT_STATUS.done : HABIT_STATUS.todo } } },
+    properties: {
+      [status.id]: { select: { name: done ? HABIT_STATUS.done : HABIT_STATUS.todo } },
+      "Streak actuel": { number: after.streak },
+      "Meilleur streak": { number: after.best },
+      // Si la colonne n'existe pas, Notion refuserait la mise à jour : on ne l'envoie que si elle est là.
+      ...(props[LAST_DONE] ? { [LAST_DONE]: { date: after.lastDone ? { start: after.lastDone } : null } } : {}),
+    },
   });
 }
 
