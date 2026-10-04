@@ -11,6 +11,7 @@ export const DATA_SOURCES = {
   journal: "d1861d2c-aced-4687-bd76-a9b0872af293",
   rewards: "73958824-011c-4b29-b6c2-7f687c34003b",
   purchases: "e6fb9a07-676a-4caa-b188-297516deeff4",
+  devices: "1147ea40-b33b-47b4-ab3d-882da535707a",
 } as const;
 
 /** Pièces gagnées par point d'XP validé au Journal (monnaie de la boutique). */

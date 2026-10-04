@@ -502,3 +502,44 @@ export async function createReward(r: { name: string; cost: number; category: st
     },
   });
 }
+
+/* ---------- Abonnements push ---------- */
+
+export interface StoredSubscription {
+  pageId: string;
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } };
+}
+
+export async function listSubscriptions(): Promise<StoredSubscription[]> {
+  const rows = await queryAll(DATA_SOURCES.devices);
+  const out: StoredSubscription[] = [];
+  for (const r of rows) {
+    try {
+      out.push({ pageId: r.id, subscription: JSON.parse(text(r.props["Abonnement"])) });
+    } catch {
+      /* ligne illisible : ignorée */
+    }
+  }
+  return out;
+}
+
+/** Enregistre (ou remplace) l'abonnement push d'un appareil. */
+export async function saveSubscription(
+  sub: StoredSubscription["subscription"],
+  device: string,
+): Promise<void> {
+  const existing = await queryAll(DATA_SOURCES.devices, { property: "Endpoint", url: { equals: sub.endpoint } });
+  await Promise.all(existing.map((r) => notion().pages.update({ page_id: r.id, in_trash: true })));
+  await notion().pages.create({
+    parent: { type: "data_source_id", data_source_id: DATA_SOURCES.devices },
+    properties: {
+      Appareil: { title: [{ text: { content: device.slice(0, 100) } }] },
+      Endpoint: { url: sub.endpoint },
+      Abonnement: { rich_text: [{ text: { content: JSON.stringify(sub) } }] },
+    },
+  });
+}
+
+export async function deleteSubscription(pageId: string): Promise<void> {
+  await notion().pages.update({ page_id: pageId, in_trash: true });
+}

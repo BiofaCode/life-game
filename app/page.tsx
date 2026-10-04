@@ -9,6 +9,7 @@ import { CloseDay } from "@/components/CloseDay";
 import { DailyGoal } from "@/components/DailyGoal";
 import { HabitList } from "@/components/HabitList";
 import { ProjectsPanel } from "@/components/ProjectsPanel";
+import { PushSettings } from "@/components/PushSettings";
 import { ShopPanel } from "@/components/ShopPanel";
 import { QuestBoard } from "@/components/QuestBoard";
 import { RefreshButton } from "@/components/RefreshButton";
@@ -148,6 +149,9 @@ export default async function Home() {
           </ul>
         </Section>
       )}
+      <Section title="🔔 Notifications">
+        <PushSettings publicKey={process.env.VAPID_PUBLIC_KEY ?? null} />
+      </Section>
       <Section title="🎨 Thème">
         <ThemePicker />
       </Section>

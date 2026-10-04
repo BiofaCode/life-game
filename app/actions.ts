@@ -4,11 +4,14 @@ import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { isAuthorized, SESSION_COOKIE } from "@/lib/auth";
 import { levelFromXp } from "@/lib/config";
+import { eveningDigest } from "@/lib/digest";
+import { pushConfigured, pushToAll } from "@/lib/push";
 import {
   buyReward,
   createJournalEntry,
   createReward,
   InsufficientCoins,
+  saveSubscription,
   createQuest,
   getXpStats,
   todayISO,
@@ -158,4 +161,41 @@ export async function addReward(_prev: ActionResult | null, form: FormData): Pro
   }
   revalidatePath("/");
   return { ok: true };
+}
+
+/** Enregistre l'abonnement push de cet appareil. */
+export async function subscribePush(raw: string, device: string): Promise<ActionResult> {
+  if (!(await authorized())) return { ok: false, error: "Session expirée, reconnecte-toi." };
+  let sub: { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } };
+  try {
+    sub = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: "Abonnement invalide." };
+  }
+  const endpoint = typeof sub.endpoint === "string" ? sub.endpoint : "";
+  const p256dh = typeof sub.keys?.p256dh === "string" ? sub.keys.p256dh : "";
+  const auth = typeof sub.keys?.auth === "string" ? sub.keys.auth : "";
+  if (!endpoint.startsWith("https://") || !p256dh || !auth || endpoint.length > 1000) {
+    return { ok: false, error: "Abonnement invalide." };
+  }
+  try {
+    await saveSubscription({ endpoint, keys: { p256dh, auth } }, String(device).slice(0, 100) || "Appareil");
+  } catch (e) {
+    console.error("subscribePush", e);
+    return { ok: false, error: "Impossible d'enregistrer l'appareil (base « 🔔 Appareils » partagée ?)." };
+  }
+  return { ok: true };
+}
+
+/** Envoie tout de suite le rappel du soir (test). */
+export async function sendTestPush(): Promise<ActionResult> {
+  if (!(await authorized())) return { ok: false, error: "Session expirée, reconnecte-toi." };
+  if (!pushConfigured()) return { ok: false, error: "Ajoute les clés VAPID dans Vercel." };
+  try {
+    const { sent } = await pushToAll(await eveningDigest());
+    return sent > 0 ? { ok: true } : { ok: false, error: "Aucun appareil abonné." };
+  } catch (e) {
+    console.error("sendTestPush", e);
+    return { ok: false, error: "Envoi impossible." };
+  }
 }

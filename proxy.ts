@@ -8,5 +8,5 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   // Tout sauf la page de login, les assets et les fichiers PWA.
-  matcher: ["/((?!login|_next/|icons/|apple-icon|manifest\\.webmanifest|favicon).*)"],
+  matcher: ["/((?!login|api/cron/|sw\\.js|_next/|icons/|apple-icon|manifest\\.webmanifest|favicon).*)"],
 };
