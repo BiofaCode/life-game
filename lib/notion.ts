@@ -453,6 +453,7 @@ export async function getShop(): Promise<Shop> {
     name: title(r.props["Achat"]),
     cost: num(r.props["Coût"]) ?? 0,
     date: date(r.props["Date"])?.slice(0, 10) ?? "",
+    retro: checkbox(r.props["Après coup"]),
   }));
   return {
     rewards,
@@ -466,20 +467,25 @@ export function coinBalance(totalXp: number, spent: number): number {
   return Math.floor(totalXp * COINS_PER_XP) - spent;
 }
 
-/** Achète une récompense si le solde suffit ; renvoie le nouveau solde. */
-export async function buyReward(pageId: string): Promise<number> {
+/**
+ * Achète une récompense si le solde suffit ; renvoie le nouveau solde.
+ * `retro` (« j'en ai déjà profité ») l'enregistre même sans assez de pièces : le solde peut
+ * passer en négatif (dette), ce qui bloque les achats normaux jusqu'au remboursement.
+ */
+export async function buyReward(pageId: string, retro = false): Promise<number> {
   const props = await retrieveIn(pageId, DATA_SOURCES.rewards);
   const name = title(props["Récompense"]);
   const cost = Math.max(0, num(props["Coût"]) ?? 0);
   const [stats, shop] = await Promise.all([getXpStats(), getShop()]);
   const balance = coinBalance(stats.total, shop.spent);
-  if (cost > balance) throw new InsufficientCoins(cost - balance);
+  if (!retro && cost > balance) throw new InsufficientCoins(cost - balance);
   await notion().pages.create({
     parent: { type: "data_source_id", data_source_id: DATA_SOURCES.purchases },
     properties: {
       Achat: { title: [{ text: { content: name } }] },
       "Coût": { number: cost },
       Date: { date: { start: todayISO() } },
+      ...(retro ? { "Après coup": { checkbox: true } } : {}),
     },
   });
   return balance - cost;
