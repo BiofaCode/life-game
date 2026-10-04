@@ -2,17 +2,17 @@ import { authEnabled } from "@/lib/auth";
 import { levelFromXp } from "@/lib/config";
 import { dayDiff, formatDate } from "@/lib/format";
 import { getHabits, getProjects, getQuests, getXpStats, todayISO } from "@/lib/notion";
-import { HABIT_STATUS } from "@/lib/notion-types";
+import { HABIT_STATUS, PROJECT_STATUS } from "@/lib/notion-types";
 import { AddQuest } from "@/components/AddQuest";
 import { DailyGoal } from "@/components/DailyGoal";
 import { HabitList } from "@/components/HabitList";
-import { ProjectCard } from "@/components/ProjectCard";
+import { ProjectsPanel } from "@/components/ProjectsPanel";
 import { QuestBoard } from "@/components/QuestBoard";
 import { RefreshButton } from "@/components/RefreshButton";
 import { Tabs } from "@/components/Tabs";
 import { ThemePicker } from "@/components/ThemePicker";
 import { XpChart } from "@/components/XpChart";
-import { Bar, Card, Empty, ErrorCard, Section } from "@/components/ui";
+import { Bar, Card, ErrorCard, Section } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -64,23 +64,10 @@ export default async function Home() {
     </>
   );
 
+  const activeProjects = projects?.filter((p) => p.status === PROJECT_STATUS.active).length ?? 0;
   const projectsTab = (
-    <Section title={`🚀 Projets en cours${projects ? ` · ${projects.length}` : ""}`}>
-      {projects ? (
-        projects.length === 0 ? (
-          <Empty>Aucun projet en cours.</Empty>
-        ) : (
-          <ul className="space-y-3">
-            {projects.map((p) => (
-              <li key={p.id}>
-                <ProjectCard p={p} />
-              </li>
-            ))}
-          </ul>
-        )
-      ) : (
-        <ErrorCard what="les projets" />
-      )}
+    <Section title={`🚀 Projets en cours${projects ? ` · ${activeProjects}` : ""}`}>
+      {projects ? <ProjectsPanel projects={projects} /> : <ErrorCard what="les projets" />}
     </Section>
   );
 

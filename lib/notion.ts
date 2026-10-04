@@ -3,6 +3,7 @@ import { Client } from "@notionhq/client";
 import { DATA_SOURCES, TIMEZONE } from "./config";
 import {
   HABIT_STATUS,
+  PROJECT_STATUS,
   QUEST_STATUS,
   type DayXp,
   type NewQuest,
@@ -216,11 +217,14 @@ export async function getHabits(): Promise<Habit[]> {
     .sort((a, b) => b.streak - a.streak || b.best - a.best);
 }
 
+/** Projets en cours, en pause et idées (les terminés/abandonnés sont exclus). */
 export async function getProjects(): Promise<Project[]> {
   const today = todayISO();
   const rows = await queryAll(DATA_SOURCES.projects, {
-    property: "Statut",
-    select: { equals: "🚀 En cours" },
+    or: [PROJECT_STATUS.active, PROJECT_STATUS.paused, PROJECT_STATUS.idea].map((s) => ({
+      property: "Statut",
+      select: { equals: s },
+    })),
   });
   return rows
     .map((r) => {
@@ -230,6 +234,8 @@ export async function getProjects(): Promise<Project[]> {
       return {
         id: r.id,
         name: title(r.props["Projet"]),
+        status: select(r.props["Statut"]),
+        url: r.url,
         progress,
         priority: select(r.props["Priorité"]),
         zone: select(r.props["Zone"]),
@@ -238,7 +244,12 @@ export async function getProjects(): Promise<Project[]> {
         start: date(r.props["Date début"]),
         end,
         daysLeft,
-        overdue: daysLeft !== null && daysLeft < 0 && progress < 100,
+        // Seul un projet en cours peut être « en retard ».
+        overdue:
+          select(r.props["Statut"]) === PROJECT_STATUS.active &&
+          daysLeft !== null &&
+          daysLeft < 0 &&
+          progress < 100,
       };
     })
     .sort(
@@ -319,5 +330,25 @@ export async function setProjectProgress(pageId: string, progress: number): Prom
   await notion().pages.update({
     page_id: pageId,
     properties: { Progression: { number: Math.min(100, Math.max(0, Math.round(progress))) } },
+  });
+}
+
+const SETTABLE_PROJECT_STATUS: readonly string[] = [
+  PROJECT_STATUS.idea,
+  PROJECT_STATUS.active,
+  PROJECT_STATUS.paused,
+  PROJECT_STATUS.done,
+];
+
+/** Change le statut d'un projet (Idée / En cours / Pause / Terminé). */
+export async function setProjectStatus(pageId: string, status: string): Promise<void> {
+  if (!SETTABLE_PROJECT_STATUS.includes(status)) throw new Error("Statut invalide.");
+  await retrieveIn(pageId, DATA_SOURCES.projects);
+  await notion().pages.update({
+    page_id: pageId,
+    properties: {
+      Statut: { select: { name: status } },
+      ...(status === PROJECT_STATUS.done ? { Progression: { number: 100 } } : {}),
+    },
   });
 }

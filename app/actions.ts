@@ -3,7 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { isAuthorized, SESSION_COOKIE } from "@/lib/auth";
-import { createQuest, setHabitDone, setProjectProgress, setQuestDone, updateQuest } from "@/lib/notion";
+import {
+  createQuest,
+  setHabitDone,
+  setProjectProgress,
+  setProjectStatus,
+  setQuestDone,
+  updateQuest,
+} from "@/lib/notion";
 import { QUEST_PRIORITIES, QUEST_STATUS, QUEST_ZONES } from "@/lib/notion-types";
 
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
@@ -77,4 +84,8 @@ export async function setQuestStatus(pageId: string, status: string): Promise<Ac
 export async function setQuestDue(pageId: string, due: string | null): Promise<ActionResult> {
   if (due !== null && !DATE.test(due)) return { ok: false, error: "Date invalide" };
   return run(pageId, () => updateQuest(pageId, { due }));
+}
+
+export async function changeProjectStatus(pageId: string, status: string): Promise<ActionResult> {
+  return run(pageId, () => setProjectStatus(pageId, String(status)));
 }

@@ -10,7 +10,7 @@ function deadline(p: Project): { text: string; tone: string } | null {
   return { text: `J-${p.daysLeft}`, tone: "text-dim" };
 }
 
-export function ProjectCard({ p }: { p: Project }) {
+export function ProjectCard({ p, onOpen }: { p: Project; onOpen: () => void }) {
   const dl = deadline(p);
   return (
     <article className={`rounded-2xl border bg-panel p-4 ${p.overdue ? "border-danger/70" : "border-edge"}`}>
@@ -29,6 +29,14 @@ export function ProjectCard({ p }: { p: Project }) {
           </h3>
           {p.zone && <p className="text-xs text-dim">{p.zone}</p>}
         </div>
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`Détails : ${p.name}`}
+          className="-mr-1 -mt-1 flex size-9 shrink-0 items-center justify-center rounded-full text-xl text-dim active:bg-edge/40"
+        >
+          ⋯
+        </button>
       </div>
 
       {p.description && <p className="mt-3 line-clamp-3 text-sm text-dim">{p.description}</p>}
