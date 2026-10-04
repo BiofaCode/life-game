@@ -35,6 +35,8 @@ export interface XpStats {
   activeStreak: number;
   bestDay: DayXp | null;
   entries: number;
+  /** 5 dernières entrées du Journal. */
+  recent: { id: string; title: string; date: string; xp: number; mood: string | null; type: string | null }[];
 }
 
 export const HABIT_STATUS = {
@@ -96,4 +98,15 @@ export interface NewQuest {
   zone: string | null;
   xp: number;
   due: string | null;
+}
+
+export const MOODS = ["🔥 En feu", "😊 Bien", "😐 Normal", "😴 Fatigué", "😤 Frustré"] as const;
+
+export interface JournalEntry {
+  title: string;
+  date: string;
+  xp: number;
+  level: number;
+  mood: string | null;
+  notes: string;
 }

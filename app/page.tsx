@@ -4,6 +4,7 @@ import { dayDiff, formatDate } from "@/lib/format";
 import { getHabits, getProjects, getQuests, getXpStats, todayISO } from "@/lib/notion";
 import { HABIT_STATUS, PROJECT_STATUS } from "@/lib/notion-types";
 import { AddQuest } from "@/components/AddQuest";
+import { CloseDay } from "@/components/CloseDay";
 import { DailyGoal } from "@/components/DailyGoal";
 import { HabitList } from "@/components/HabitList";
 import { ProjectsPanel } from "@/components/ProjectsPanel";
@@ -60,6 +61,7 @@ export default async function Home() {
       <Section title={`🔥 Habitudes${habits ? ` · ${habitsDone}/${habits.length}` : ""}`}>
         {habits ? <HabitList habits={habits} /> : <ErrorCard what="les habitudes" />}
       </Section>
+      {quests && habits && xp && <CloseDay quests={quests} habits={habits} journalToday={xp.today} />}
       <AddQuest today={today} />
     </>
   );
@@ -102,6 +104,22 @@ export default async function Home() {
               sub={bestHabit?.name}
             />
           </div>
+        </Section>
+      )}
+      {xp && xp.recent.length > 0 && (
+        <Section title="📔 Journal récent">
+          <ul className="space-y-2">
+            {xp.recent.map((e) => (
+              <li key={e.id} className="flex items-center gap-3 rounded-2xl border border-edge bg-panel px-3 py-2.5">
+                <span className="text-xl">{e.mood ? e.mood.split(" ")[0] : (e.type?.split(" ")[0] ?? "📔")}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{e.title}</span>
+                  <span className="text-xs text-dim">{formatDate(e.date)}</span>
+                </span>
+                <span className="shrink-0 text-sm font-bold text-xp-soft">+{e.xp}</span>
+              </li>
+            ))}
+          </ul>
         </Section>
       )}
       <Section title="🎨 Thème">
