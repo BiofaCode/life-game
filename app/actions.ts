@@ -3,15 +3,19 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { isAuthorized, SESSION_COOKIE } from "@/lib/auth";
+import { levelFromXp } from "@/lib/config";
 import {
+  createJournalEntry,
   createQuest,
+  getXpStats,
+  todayISO,
   setHabitDone,
   setProjectProgress,
   setProjectStatus,
   setQuestDone,
   updateQuest,
 } from "@/lib/notion";
-import { QUEST_PRIORITIES, QUEST_STATUS, QUEST_ZONES } from "@/lib/notion-types";
+import { MOODS, QUEST_PRIORITIES, QUEST_STATUS, QUEST_ZONES } from "@/lib/notion-types";
 
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 
@@ -88,4 +92,35 @@ export async function setQuestDue(pageId: string, due: string | null): Promise<A
 
 export async function changeProjectStatus(pageId: string, status: string): Promise<ActionResult> {
   return run(pageId, () => setProjectStatus(pageId, String(status)));
+}
+
+/** Clôture la journée : crée une entrée au Journal XP avec l'XP du jour. */
+export async function closeDay(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  if (!(await authorized())) return { ok: false, error: "Session expirée, reconnecte-toi." };
+
+  const title = String(form.get("title") ?? "").trim().slice(0, 200);
+  const xp = Math.round(Number(form.get("xp")));
+  const mood = String(form.get("mood") ?? "");
+  const notes = String(form.get("notes") ?? "").trim();
+
+  if (!title) return { ok: false, error: "Donne un titre à ta journée." };
+  if (!Number.isFinite(xp) || xp < 0 || xp > 10_000) return { ok: false, error: "XP invalide." };
+  if (mood && !(MOODS as readonly string[]).includes(mood)) return { ok: false, error: "Humeur invalide." };
+
+  try {
+    const stats = await getXpStats();
+    await createJournalEntry({
+      title,
+      date: todayISO(),
+      xp,
+      level: levelFromXp(stats.total + xp).level,
+      mood: mood || null,
+      notes,
+    });
+  } catch (e) {
+    console.error("closeDay", e);
+    return { ok: false, error: "Impossible d'écrire dans le Journal." };
+  }
+  revalidatePath("/");
+  return { ok: true };
 }

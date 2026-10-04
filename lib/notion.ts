@@ -6,6 +6,7 @@ import {
   PROJECT_STATUS,
   QUEST_STATUS,
   type DayXp,
+  type JournalEntry,
   type NewQuest,
   type Habit,
   type Project,
@@ -150,7 +151,20 @@ export async function getXpStats(): Promise<XpStats> {
   let bestDay: DayXp | null = null;
   for (const [d, xp] of byDay) if (!bestDay || xp > bestDay.xp) bestDay = { date: d, xp };
 
-  return { total, today: byDay.get(today) ?? 0, last7, activeStreak, bestDay, entries: rows.length };
+  const recent = rows
+    .map((r) => ({
+      id: r.id,
+      title: title(r.props["Entrée"]),
+      date: date(r.props["Date"])?.slice(0, 10) ?? "",
+      xp: num(r.props["XP gagné"]) ?? 0,
+      mood: select(r.props["Humeur"]),
+      type: select(r.props["Type"]),
+    }))
+    .filter((e) => e.date)
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 5);
+
+  return { total, today: byDay.get(today) ?? 0, last7, activeStreak, bestDay, entries: rows.length, recent };
 }
 
 /** Quêtes À faire / En cours, plus celles complétées aujourd'hui (pour pouvoir les décocher). */
@@ -349,6 +363,22 @@ export async function setProjectStatus(pageId: string, status: string): Promise<
     properties: {
       Statut: { select: { name: status } },
       ...(status === PROJECT_STATUS.done ? { Progression: { number: 100 } } : {}),
+    },
+  });
+}
+
+/** Ajoute une entrée « 🏆 Victoire » au Journal XP. */
+export async function createJournalEntry(e: JournalEntry): Promise<void> {
+  await notion().pages.create({
+    parent: { type: "data_source_id", data_source_id: DATA_SOURCES.journal },
+    properties: {
+      "Entrée": { title: [{ text: { content: e.title } }] },
+      Date: { date: { start: e.date } },
+      "XP gagné": { number: e.xp },
+      "Niveau atteint": { number: e.level },
+      Type: { select: { name: "🏆 Victoire" } },
+      ...(e.mood ? { Humeur: { select: { name: e.mood } } } : {}),
+      ...(e.notes ? { Notes: { rich_text: [{ text: { content: e.notes.slice(0, 2000) } }] } } : {}),
     },
   });
 }
