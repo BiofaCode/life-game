@@ -1,48 +1,46 @@
 "use client";
 
-import { completeHabit } from "@/app/actions";
-import { HABIT_DONE, type Habit } from "@/lib/notion-types";
-import { useOptimisticDone } from "./useOptimisticDone";
-
-const STATUS_STYLE: Record<string, string> = {
-  "✅ Fait": "border-ok/50",
-  "❌ Raté": "border-danger/40",
-};
+import { toggleHabit } from "@/app/actions";
+import { HABIT_STATUS, type Habit } from "@/lib/notion-types";
+import { Check } from "./Check";
+import { useOptimisticToggle } from "./useOptimisticToggle";
 
 export function HabitList({ habits }: { habits: Habit[] }) {
-  const { done, markDone } = useOptimisticDone(completeHabit);
+  const { isDone, toggle } = useOptimisticToggle(toggleHabit);
 
   if (habits.length === 0) return <p className="px-1 py-3 text-sm text-dim">Aucune habitude.</p>;
 
   return (
-    <ul className="space-y-2">
+    <ul className="grid grid-cols-1 gap-2">
       {habits.map((h) => {
-        const isDone = h.today === HABIT_DONE || done.has(h.id);
+        const d = isDone(h.id, h.today === HABIT_STATUS.done);
+        const missed = !d && h.today === HABIT_STATUS.missed;
         return (
           <li key={h.id}>
             <button
               type="button"
-              disabled={isDone}
-              onClick={() => markDone(h.id, `🔥 ${h.name} · fait !`)}
-              aria-label={isDone ? `${h.name} : fait` : `Marquer fait : ${h.name}`}
-              className={`flex min-h-14 w-full items-center gap-3 rounded-2xl border bg-panel p-3 text-left active:bg-edge/40 disabled:active:bg-panel ${
-                isDone ? STATUS_STYLE[HABIT_DONE] : (h.today && STATUS_STYLE[h.today]) || "border-edge"
+              onClick={() => toggle(h.id, !d, d ? undefined : `🔥 ${h.name}`)}
+              aria-pressed={d}
+              className={`flex w-full items-center gap-3 rounded-2xl border bg-panel px-3 py-3 text-left active:scale-[0.99] active:bg-edge/40 ${
+                d ? "border-ok/40" : missed ? "border-danger/40" : "border-edge"
               }`}
             >
-              <span
-                className={`flex size-6 shrink-0 items-center justify-center rounded-md border-2 text-sm ${
-                  isDone ? "border-ok bg-ok text-black" : "border-dim"
-                }`}
-              >
-                {isDone ? "✓" : ""}
-              </span>
+              <Check done={d} />
               <span className="min-w-0 flex-1">
-                <span className={`block truncate font-medium ${isDone ? "text-dim" : ""}`}>{h.name}</span>
-                {!isDone && h.today === "❌ Raté" && <span className="text-xs text-danger">Raté</span>}
+                <span className={`block truncate font-medium ${d ? "text-dim" : ""}`}>{h.name}</span>
+                <span className="flex gap-1.5 text-xs text-dim">
+                  {[
+                    missed && <span key="m" className="text-danger">Raté</span>,
+                    h.frequency && <span key="f">{h.frequency}</span>,
+                    h.xp > 0 && <span key="x">+{h.xp} XP</span>,
+                  ]
+                    .filter(Boolean)
+                    .flatMap((el, i) => (i ? [<span key={`s${i}`}>·</span>, el] : [el]))}
+                </span>
               </span>
-              <span className="flex shrink-0 items-center gap-3 text-sm">
-                <span className="font-bold text-orange-400">🔥 {h.streak}</span>
-                <span className="text-dim">🏆 {h.best}</span>
+              <span className="flex shrink-0 flex-col items-end text-xs leading-tight">
+                <span className="text-base font-black text-orange-400">🔥 {h.streak}</span>
+                <span className="text-dim">record {h.best}</span>
               </span>
             </button>
           </li>
