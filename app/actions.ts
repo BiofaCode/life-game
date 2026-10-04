@@ -5,7 +5,10 @@ import { cookies } from "next/headers";
 import { isAuthorized, SESSION_COOKIE } from "@/lib/auth";
 import { levelFromXp } from "@/lib/config";
 import {
+  buyReward,
   createJournalEntry,
+  createReward,
+  InsufficientCoins,
   createQuest,
   getXpStats,
   todayISO,
@@ -15,7 +18,7 @@ import {
   setQuestDone,
   updateQuest,
 } from "@/lib/notion";
-import { MOODS, QUEST_PRIORITIES, QUEST_STATUS, QUEST_ZONES } from "@/lib/notion-types";
+import { MOODS, QUEST_PRIORITIES, QUEST_STATUS, QUEST_ZONES, REWARD_CATEGORIES } from "@/lib/notion-types";
 
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 
@@ -120,6 +123,38 @@ export async function closeDay(_prev: ActionResult | null, form: FormData): Prom
   } catch (e) {
     console.error("closeDay", e);
     return { ok: false, error: "Impossible d'écrire dans le Journal." };
+  }
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function purchase(pageId: string): Promise<ActionResult> {
+  if (!(await authorized())) return { ok: false, error: "Session expirée, reconnecte-toi." };
+  if (!UUID.test(pageId)) return { ok: false, error: "ID invalide" };
+  try {
+    await buyReward(pageId);
+  } catch (e) {
+    if (e instanceof InsufficientCoins) return { ok: false, error: e.message };
+    console.error("purchase", e);
+    return { ok: false, error: "Achat impossible (Notion)." };
+  }
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function addReward(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  if (!(await authorized())) return { ok: false, error: "Session expirée, reconnecte-toi." };
+  const name = String(form.get("name") ?? "").trim().slice(0, 200);
+  const cost = Math.round(Number(form.get("cost")));
+  const category = String(form.get("category") ?? "");
+  if (!name) return { ok: false, error: "Donne un nom à la récompense." };
+  if (!Number.isFinite(cost) || cost < 1 || cost > 100_000) return { ok: false, error: "Coût invalide." };
+  if (category && !(REWARD_CATEGORIES as readonly string[]).includes(category)) return { ok: false, error: "Catégorie invalide." };
+  try {
+    await createReward({ name, cost, category: category || null });
+  } catch (e) {
+    console.error("addReward", e);
+    return { ok: false, error: "Impossible de créer la récompense." };
   }
   revalidatePath("/");
   return { ok: true };

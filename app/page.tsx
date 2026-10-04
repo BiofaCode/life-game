@@ -1,7 +1,7 @@
 import { authEnabled } from "@/lib/auth";
 import { levelFromXp } from "@/lib/config";
 import { dayDiff, formatDate } from "@/lib/format";
-import { getHabits, getProjects, getQuests, getXpStats, getZoneXp, todayISO } from "@/lib/notion";
+import { coinBalance, getHabits, getProjects, getQuests, getShop, getXpStats, getZoneXp, todayISO } from "@/lib/notion";
 import { HABIT_STATUS, PROJECT_STATUS } from "@/lib/notion-types";
 import { AddQuest } from "@/components/AddQuest";
 import { Attributes } from "@/components/Attributes";
@@ -9,6 +9,7 @@ import { CloseDay } from "@/components/CloseDay";
 import { DailyGoal } from "@/components/DailyGoal";
 import { HabitList } from "@/components/HabitList";
 import { ProjectsPanel } from "@/components/ProjectsPanel";
+import { ShopPanel } from "@/components/ShopPanel";
 import { QuestBoard } from "@/components/QuestBoard";
 import { RefreshButton } from "@/components/RefreshButton";
 import { Tabs } from "@/components/Tabs";
@@ -32,14 +33,15 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 }
 
 export default async function Home() {
-  const [xpR, questsR, habitsR, projectsR, zoneR] = await Promise.allSettled([
+  const [xpR, questsR, habitsR, projectsR, zoneR, shopR] = await Promise.allSettled([
     getXpStats(),
     getQuests(),
     getHabits(),
     getProjects(),
     getZoneXp(),
+    getShop(),
   ]);
-  for (const r of [xpR, questsR, habitsR, projectsR, zoneR]) {
+  for (const r of [xpR, questsR, habitsR, projectsR, zoneR, shopR]) {
     if (r.status === "rejected") console.error(r.reason);
   }
   const xp = ok(xpR);
@@ -47,6 +49,7 @@ export default async function Home() {
   const habits = ok(habitsR);
   const projects = ok(projectsR);
   const zoneXp = ok(zoneR);
+  const shop = ok(shopR);
   const lvl = xp ? levelFromXp(xp.total) : null;
   const today = todayISO();
 
@@ -81,6 +84,15 @@ export default async function Home() {
       {projects ? <ProjectsPanel projects={projects} /> : <ErrorCard what="les projets" />}
     </Section>
   );
+
+  const shopTab =
+    shop && xp ? (
+      <ShopPanel shop={shop} balance={coinBalance(xp.total, shop.spent)} pendingXp={pendingXp} />
+    ) : (
+      <div className="mt-4">
+        <ErrorCard what="la boutique (partage « 🛒 Boutique de Récompenses » et « 🧾 Achats » avec l'intégration)" />
+      </div>
+    );
 
   const statsTab = (
     <>
@@ -167,6 +179,7 @@ export default async function Home() {
         tabs={[
           { id: "today", label: "Aujourd'hui", icon: "⚔️", badge: lateCount, content: todayTab },
           { id: "projects", label: "Projets", icon: "🚀", badge: overdueProjects, content: projectsTab },
+          { id: "shop", label: "Boutique", icon: "🛒", content: shopTab },
           { id: "stats", label: "Profil", icon: "📊", content: statsTab },
         ]}
       />
