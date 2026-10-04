@@ -11,10 +11,13 @@ export function CloseDay({
   quests,
   habits,
   journalToday,
+  pendingXp,
 }: {
   quests: Quest[];
   habits: Habit[];
   journalToday: number;
+  /** XP gagné aujourd'hui pas encore inscrit au Journal. */
+  pendingXp: number;
 }) {
   const [open, setOpen] = useState(false);
   const [mood, setMood] = useState<string>("");
@@ -22,8 +25,7 @@ export function CloseDay({
 
   const doneQuests = quests.filter((q) => q.done);
   const doneHabits = habits.filter((h) => h.today === HABIT_STATUS.done);
-  const suggested =
-    doneQuests.reduce((s, q) => s + q.xp, 0) + doneHabits.reduce((s, h) => s + h.xp, 0);
+  const suggested = pendingXp;
 
   const notes = [
     doneQuests.length ? `Quêtes : ${doneQuests.map((q) => `${q.name} (+${q.xp})`).join(", ")}` : "",
