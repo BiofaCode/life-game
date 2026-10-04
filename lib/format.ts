@@ -45,3 +45,10 @@ const WEEKDAYS = ["dim", "lun", "mar", "mer", "jeu", "ven", "sam"];
 export function weekdayShort(iso: string): string {
   return WEEKDAYS[new Date(`${iso}T12:00:00Z`).getUTCDay()] ?? "";
 }
+
+/** Décale une date YYYY-MM-DD de n jours. */
+export function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}

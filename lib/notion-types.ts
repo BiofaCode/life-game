@@ -16,6 +16,9 @@ export interface Quest {
   due: string | null;
   /** Complétée (aujourd'hui). */
   done: boolean;
+  difficulty: string | null;
+  notes: string;
+  url: string;
 }
 
 export interface DayXp {

@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { isAuthorized, SESSION_COOKIE } from "@/lib/auth";
-import { createQuest, setHabitDone, setProjectProgress, setQuestDone } from "@/lib/notion";
-import { QUEST_PRIORITIES, QUEST_ZONES } from "@/lib/notion-types";
+import { createQuest, setHabitDone, setProjectProgress, setQuestDone, updateQuest } from "@/lib/notion";
+import { QUEST_PRIORITIES, QUEST_STATUS, QUEST_ZONES } from "@/lib/notion-types";
 
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 
@@ -65,4 +65,16 @@ export async function addQuest(_prev: ActionResult | null, form: FormData): Prom
   }
   revalidatePath("/");
   return { ok: true };
+}
+
+/** Passe une quête en 🔴 À faire ou 🟡 En cours. */
+export async function setQuestStatus(pageId: string, status: string): Promise<ActionResult> {
+  if (status !== QUEST_STATUS.todo && status !== QUEST_STATUS.doing) return { ok: false, error: "Statut invalide" };
+  return run(pageId, () => updateQuest(pageId, { status }));
+}
+
+/** Change l'échéance d'une quête (null = sans date). */
+export async function setQuestDue(pageId: string, due: string | null): Promise<ActionResult> {
+  if (due !== null && !DATE.test(due)) return { ok: false, error: "Date invalide" };
+  return run(pageId, () => updateQuest(pageId, { due }));
 }

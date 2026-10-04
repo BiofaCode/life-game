@@ -144,3 +144,9 @@ body {
   100% { opacity: 0; transform: translateY(-6px); }
 }
 .toast-pop { animation: toast-pop 2.2s ease-out forwards; }
+
+@keyframes sheet-up {
+  from { transform: translateY(40px); opacity: 0.6; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.sheet-up { animation: sheet-up 0.18s ease-out; }

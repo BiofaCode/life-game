@@ -37,6 +37,7 @@ interface Row {
   id: string;
   props: Props;
   lastEdited: string;
+  url: string;
 }
 
 async function queryAll(
@@ -58,6 +59,7 @@ async function queryAll(
           id: r.id,
           props: r.properties as unknown as Props,
           lastEdited: "last_edited_time" in r ? r.last_edited_time : "",
+          url: "url" in r ? r.url : "",
         });
       }
     }
@@ -180,6 +182,9 @@ export async function getQuests(): Promise<Quest[]> {
           zone: select(r.props["Zone"]),
           due: date(r.props["Échéance"]),
           done: status === QUEST_STATUS.done,
+          difficulty: select(r.props["Difficulté"]),
+          notes: text(r.props["Notes"]),
+          url: r.url,
         },
       };
     })
@@ -264,6 +269,21 @@ export async function setQuestDone(pageId: string, done: boolean): Promise<void>
   await notion().pages.update({
     page_id: pageId,
     properties: { Statut: { select: { name: done ? QUEST_STATUS.done : QUEST_STATUS.todo } } },
+  });
+}
+
+/** Change le statut (À faire / En cours) et/ou l'échéance d'une quête. */
+export async function updateQuest(
+  pageId: string,
+  patch: { status?: string; due?: string | null },
+): Promise<void> {
+  await retrieveIn(pageId, DATA_SOURCES.quests);
+  await notion().pages.update({
+    page_id: pageId,
+    properties: {
+      ...(patch.status ? { Statut: { select: { name: patch.status } } } : {}),
+      ...(patch.due !== undefined ? { "Échéance": { date: patch.due ? { start: patch.due } : null } } : {}),
+    },
   });
 }
 

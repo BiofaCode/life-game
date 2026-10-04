@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { toggleQuest } from "@/app/actions";
 import { dayDiff, priorityIcon, relativeDue, zoneEmoji } from "@/lib/format";
 import { QUEST_STATUS, type Quest } from "@/lib/notion-types";
 import { Check } from "./Check";
+import { QuestDetails } from "./QuestDetails";
 import { useOptimisticToggle } from "./useOptimisticToggle";
 
 type Group = { key: string; title: string; quests: Quest[] };
@@ -25,6 +27,9 @@ function groupQuests(quests: Quest[], today: string): Group[] {
 
 export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }) {
   const { isDone, toggle } = useOptimisticToggle(toggleQuest);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const opened = quests.find((q) => q.id === openId) ?? null;
+  const toggleQ = (q: Quest, d: boolean) => toggle(q.id, !d, d ? undefined : `⚔️ +${q.xp} XP`);
 
   const open = quests.filter((q) => !isDone(q.id, q.done));
   const done = quests.filter((q) => isDone(q.id, q.done));
@@ -34,14 +39,21 @@ export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }
     const d = isDone(q.id, q.done);
     const late = !d && q.due !== null && dayDiff(today, q.due) < 0;
     return (
-      <li key={q.id}>
+      <li key={q.id} className="flex items-stretch rounded-2xl border border-edge bg-panel">
         <button
           type="button"
-          onClick={() => toggle(q.id, !d, d ? undefined : `⚔️ +${q.xp} XP`)}
+          onClick={() => toggleQ(q, d)}
           aria-pressed={d}
-          className="flex w-full items-center gap-3 rounded-2xl border border-edge bg-panel px-3 py-3 text-left active:scale-[0.99] active:bg-edge/40"
+          aria-label={d ? `Décocher : ${q.name}` : `Terminer : ${q.name}`}
+          className="flex shrink-0 items-center rounded-l-2xl pl-3 pr-2 active:bg-edge/40"
         >
           <Check done={d} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setOpenId(q.id)}
+          className="flex min-w-0 flex-1 items-center gap-3 rounded-r-2xl py-3 pr-3 text-left active:bg-edge/40"
+        >
           <span className="min-w-0 flex-1">
             <span className={`line-clamp-2 font-medium leading-snug ${d ? "text-dim line-through" : ""}`}>
               {q.status === QUEST_STATUS.doing && !d && <span className="mr-1 text-gold">▶</span>}
@@ -56,6 +68,7 @@ export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }
                   </span>
                 )}
                 {q.due && <span className={late ? "font-semibold text-danger" : ""}>{relativeDue(q.due, today)}</span>}
+                {q.notes && <span title="Notes">📝</span>}
               </span>
             )}
           </span>
@@ -90,9 +103,18 @@ export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }
             </span>
             <span className="text-dim transition-transform group-open:rotate-180">▾</span>
           </summary>
-          <p className="mb-2 px-1 text-xs text-dim">Touche une quête pour la décocher.</p>
+          <p className="mb-2 px-1 text-xs text-dim">Touche la case pour décocher.</p>
           <ul className="space-y-2">{done.map(row)}</ul>
         </details>
+      )}
+      {opened && (
+        <QuestDetails
+          quest={opened}
+          today={today}
+          done={isDone(opened.id, opened.done)}
+          onToggle={() => toggleQ(opened, isDone(opened.id, opened.done))}
+          onClose={() => setOpenId(null)}
+        />
       )}
     </div>
   );
