@@ -2,8 +2,10 @@ import "server-only";
 import { Client } from "@notionhq/client";
 import { DATA_SOURCES, TIMEZONE } from "./config";
 import {
-  HABIT_DONE,
+  HABIT_STATUS,
   QUEST_STATUS,
+  type DayXp,
+  type NewQuest,
   type Habit,
   type Project,
   type Quest,
@@ -74,6 +76,10 @@ function num(p?: Props[string]): number | null {
 function select(p?: Props[string]): string | null {
   return p?.type === "select" ? ((p.select as { name: string } | null)?.name ?? null) : null;
 }
+function text(p?: Props[string]): string {
+  const arr = p?.type === "rich_text" ? (p.rich_text as { plain_text: string }[]) : [];
+  return arr.map((t) => t.plain_text).join("");
+}
 function date(p?: Props[string]): string | null {
   return p?.type === "date" ? ((p.date as { start: string } | null)?.start ?? null) : null;
 }
@@ -87,48 +93,101 @@ function toLocalISODate(d: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(d);
 }
 
+/** Décale une date YYYY-MM-DD de n jours. */
+function addDays(iso: string, n: number): string {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round(
+    (Date.parse(`${to.slice(0, 10)}T12:00:00Z`) - Date.parse(`${from.slice(0, 10)}T12:00:00Z`)) / 86_400_000,
+  );
+}
+
+const editedToday = (r: Row, today: string) =>
+  r.lastEdited !== "" && toLocalISODate(new Date(r.lastEdited)) === today;
+
 /* ---------- Domaine ---------- */
 
-const QUEST_PRIORITY_ORDER = ["🔥 Urgent", "⚡ Haute", "📌 Normale", "💤 Basse"];
+const PRIORITY_ORDER = ["🔥", "⚡", "📌", "💤"];
+/** Rang de priorité par emoji (marche pour Quêtes « Urgent » et Projets « Critique »). */
+function priorityRank(p: string | null): number {
+  const i = p ? PRIORITY_ORDER.findIndex((e) => p.startsWith(e)) : -1;
+  return i === -1 ? PRIORITY_ORDER.length : i;
+}
 
 export async function getXpStats(): Promise<XpStats> {
   const today = todayISO();
   const rows = await queryAll(DATA_SOURCES.journal);
-  return rows.reduce<XpStats>(
-    (acc, r) => {
-      const xp = num(r.props["XP gagné"]) ?? 0;
-      acc.total += xp;
-      if (date(r.props["Date"])?.slice(0, 10) === today) acc.today += xp;
-      return acc;
-    },
-    { total: 0, today: 0 },
-  );
+  const byDay = new Map<string, number>();
+  let total = 0;
+  for (const r of rows) {
+    const xp = num(r.props["XP gagné"]) ?? 0;
+    total += xp;
+    const d = date(r.props["Date"])?.slice(0, 10);
+    if (d) byDay.set(d, (byDay.get(d) ?? 0) + xp);
+  }
+
+  const last7: DayXp[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = addDays(today, -i);
+    last7.push({ date: d, xp: byDay.get(d) ?? 0 });
+  }
+
+  // Série en cours : on tolère qu'aujourd'hui ne soit pas encore saisi.
+  let activeStreak = 0;
+  let cursor = byDay.has(today) ? today : addDays(today, -1);
+  while (byDay.has(cursor)) {
+    activeStreak++;
+    cursor = addDays(cursor, -1);
+  }
+
+  let bestDay: DayXp | null = null;
+  for (const [d, xp] of byDay) if (!bestDay || xp > bestDay.xp) bestDay = { date: d, xp };
+
+  return { total, today: byDay.get(today) ?? 0, last7, activeStreak, bestDay, entries: rows.length };
 }
 
+/** Quêtes À faire / En cours, plus celles complétées aujourd'hui (pour pouvoir les décocher). */
 export async function getQuests(): Promise<Quest[]> {
+  const today = todayISO();
   const rows = await queryAll(DATA_SOURCES.quests, {
     or: [
       { property: "Statut", select: { equals: QUEST_STATUS.todo } },
       { property: "Statut", select: { equals: QUEST_STATUS.doing } },
+      {
+        and: [
+          { property: "Statut", select: { equals: QUEST_STATUS.done } },
+          // Marge d'un jour pour le décalage UTC ; le filtre fin se fait ci-dessous.
+          { timestamp: "last_edited_time", last_edited_time: { on_or_after: addDays(today, -1) } },
+        ],
+      },
     ],
   });
-  const rank = (p: string | null) => {
-    const i = p ? QUEST_PRIORITY_ORDER.indexOf(p) : -1;
-    return i === -1 ? QUEST_PRIORITY_ORDER.length : i;
-  };
   return rows
-    .map((r) => ({
-      id: r.id,
-      name: title(r.props["Quête"]),
-      status: select(r.props["Statut"]),
-      priority: select(r.props["Priorité"]),
-      xp: num(r.props["XP"]) ?? 0,
-      zone: select(r.props["Zone"]),
-      due: date(r.props["Échéance"]),
-    }))
+    .map((r) => {
+      const status = select(r.props["Statut"]);
+      return {
+        row: r,
+        quest: {
+          id: r.id,
+          name: title(r.props["Quête"]),
+          status,
+          priority: select(r.props["Priorité"]),
+          xp: num(r.props["XP"]) ?? 0,
+          zone: select(r.props["Zone"]),
+          due: date(r.props["Échéance"]),
+          done: status === QUEST_STATUS.done,
+        },
+      };
+    })
+    .filter(({ row, quest }) => !quest.done || editedToday(row, today))
+    .map(({ quest }) => quest)
     .sort(
       (a, b) =>
-        rank(a.priority) - rank(b.priority) ||
+        priorityRank(a.priority) - priorityRank(b.priority) ||
         (a.due ?? "9999").localeCompare(b.due ?? "9999"),
     );
 }
@@ -145,11 +204,9 @@ export async function getHabits(): Promise<Habit[]> {
       streak: num(r.props["Streak actuel"]) ?? 0,
       best: num(r.props["Meilleur streak"]) ?? 0,
       xp: num(r.props["XP par réalisation"]) ?? 0,
+      frequency: select(r.props["Fréquence"]),
       // Un statut posé un jour précédent ne vaut pas pour aujourd'hui.
-      today:
-        r.lastEdited && toLocalISODate(new Date(r.lastEdited)) === today
-          ? select(propByPrefix(r.props, HABIT_STATUS_PREFIX))
-          : null,
+      today: editedToday(r, today) ? select(propByPrefix(r.props, HABIT_STATUS_PREFIX)) : null,
     }))
     .sort((a, b) => b.streak - a.streak || b.best - a.best);
 }
@@ -164,15 +221,27 @@ export async function getProjects(): Promise<Project[]> {
     .map((r) => {
       const end = date(r.props["Date fin"]);
       const progress = Math.min(100, Math.max(0, num(r.props["Progression"]) ?? 0));
+      const daysLeft = end ? daysBetween(today, end) : null;
       return {
         id: r.id,
         name: title(r.props["Projet"]),
         progress,
+        priority: select(r.props["Priorité"]),
+        zone: select(r.props["Zone"]),
+        description: text(r.props["Description"]),
+        xp: num(r.props["XP total"]) ?? 0,
+        start: date(r.props["Date début"]),
         end,
-        overdue: end !== null && end.slice(0, 10) < today && progress < 100,
+        daysLeft,
+        overdue: daysLeft !== null && daysLeft < 0 && progress < 100,
       };
     })
-    .sort((a, b) => (a.end ?? "9999").localeCompare(b.end ?? "9999"));
+    .sort(
+      (a, b) =>
+        Number(b.overdue) - Number(a.overdue) ||
+        priorityRank(a.priority) - priorityRank(b.priority) ||
+        (a.end ?? "9999").localeCompare(b.end ?? "9999"),
+    );
 }
 
 /** Récupère une page en vérifiant qu'elle appartient bien à la base attendue. */
@@ -189,34 +258,46 @@ async function retrieveIn(pageId: string, dataSourceId: string): Promise<Props> 
   return page.properties as unknown as Props;
 }
 
-/** Passe une quête en « Complété ». Refuse toute page hors de la base Quêtes. */
-export async function markQuestDone(pageId: string): Promise<void> {
+/** Coche (🟢 Complété) ou décoche (🔴 À faire) une quête. Refuse toute page hors de la base Quêtes. */
+export async function setQuestDone(pageId: string, done: boolean): Promise<void> {
   await retrieveIn(pageId, DATA_SOURCES.quests);
   await notion().pages.update({
     page_id: pageId,
-    properties: { Statut: { select: { name: QUEST_STATUS.done } } },
+    properties: { Statut: { select: { name: done ? QUEST_STATUS.done : QUEST_STATUS.todo } } },
   });
 }
 
-/** Annule une complétion : remet la quête dans son statut précédent (À faire / En cours). */
-export async function reopenQuest(pageId: string, status: string): Promise<void> {
-  if (status !== QUEST_STATUS.todo && status !== QUEST_STATUS.doing) {
-    throw new Error("Statut invalide.");
-  }
-  await retrieveIn(pageId, DATA_SOURCES.quests);
-  await notion().pages.update({
-    page_id: pageId,
-    properties: { Statut: { select: { name: status } } },
-  });
-}
-
-/** Passe le « Statut aujourd'hui » d'une habitude à « ✅ Fait ». */
-export async function markHabitDone(pageId: string): Promise<void> {
+/** Passe le « Statut aujourd'hui » d'une habitude à ✅ Fait ou ⏳ À faire. */
+export async function setHabitDone(pageId: string, done: boolean): Promise<void> {
   const props = await retrieveIn(pageId, DATA_SOURCES.habits);
   const status = propByPrefix(props, HABIT_STATUS_PREFIX);
   if (!status) throw new Error("Propriété « Statut aujourd'hui » introuvable.");
   await notion().pages.update({
     page_id: pageId,
-    properties: { [status.id]: { select: { name: HABIT_DONE } } },
+    properties: { [status.id]: { select: { name: done ? HABIT_STATUS.done : HABIT_STATUS.todo } } },
+  });
+}
+
+/** Crée une quête 🔴 À faire. Les valeurs sont validées contre les options connues. */
+export async function createQuest(q: NewQuest): Promise<void> {
+  await notion().pages.create({
+    parent: { type: "data_source_id", data_source_id: DATA_SOURCES.quests },
+    properties: {
+      "Quête": { title: [{ text: { content: q.name } }] },
+      Statut: { select: { name: QUEST_STATUS.todo } },
+      "Priorité": { select: { name: q.priority } },
+      XP: { number: q.xp },
+      ...(q.zone ? { Zone: { select: { name: q.zone } } } : {}),
+      ...(q.due ? { "Échéance": { date: { start: q.due } } } : {}),
+    },
+  });
+}
+
+/** Met à jour la progression (0–100) d'un projet. */
+export async function setProjectProgress(pageId: string, progress: number): Promise<void> {
+  await retrieveIn(pageId, DATA_SOURCES.projects);
+  await notion().pages.update({
+    page_id: pageId,
+    properties: { Progression: { number: Math.min(100, Math.max(0, Math.round(progress))) } },
   });
 }

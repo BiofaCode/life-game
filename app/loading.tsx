@@ -4,17 +4,13 @@ function Block({ h }: { h: string }) {
 
 export default function Loading() {
   return (
-    <main className="mx-auto max-w-lg space-y-2 px-4 pt-4" aria-busy="true">
-      <div className="mb-3 h-10" />
-      <Block h="h-32" />
+    <main className="mx-auto max-w-lg space-y-2 px-4 pb-28 pt-4" aria-busy="true" aria-label="Chargement">
+      <Block h="h-20" />
       <div className="h-6" />
-      {[0, 1, 2, 3].map((i) => (
-        <Block key={i} h="h-14" />
+      {[0, 1, 2, 3, 4].map((i) => (
+        <Block key={i} h="h-16" />
       ))}
-      <div className="h-6" />
-      {[0, 1, 2].map((i) => (
-        <Block key={i} h="h-14" />
-      ))}
+      <nav className="fixed inset-x-0 bottom-0 h-[calc(env(safe-area-inset-bottom)+4rem)] border-t border-edge bg-bg/90" />
     </main>
   );
 }
