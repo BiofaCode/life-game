@@ -34,6 +34,7 @@ function propByPrefix(props: Props, prefix: string): Props[string] | undefined {
 interface Row {
   id: string;
   props: Props;
+  lastEdited: string;
 }
 
 async function queryAll(
@@ -51,7 +52,11 @@ async function queryAll(
     });
     for (const r of res.results) {
       if (r.object === "page" && "properties" in r) {
-        rows.push({ id: r.id, props: r.properties as unknown as Props });
+        rows.push({
+          id: r.id,
+          props: r.properties as unknown as Props,
+          lastEdited: "last_edited_time" in r ? r.last_edited_time : "",
+        });
       }
     }
     cursor = res.has_more ? (res.next_cursor ?? undefined) : undefined;
@@ -75,7 +80,11 @@ function date(p?: Props[string]): string | null {
 
 /** Date du jour (YYYY-MM-DD) dans le fuseau configuré. */
 export function todayISO(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(new Date());
+  return toLocalISODate(new Date());
+}
+
+function toLocalISODate(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE }).format(d);
 }
 
 /* ---------- Domaine ---------- */
@@ -127,6 +136,7 @@ export async function getQuests(): Promise<Quest[]> {
 const HABIT_STATUS_PREFIX = "Statut aujourd";
 
 export async function getHabits(): Promise<Habit[]> {
+  const today = todayISO();
   const rows = await queryAll(DATA_SOURCES.habits);
   return rows
     .map((r) => ({
@@ -135,7 +145,11 @@ export async function getHabits(): Promise<Habit[]> {
       streak: num(r.props["Streak actuel"]) ?? 0,
       best: num(r.props["Meilleur streak"]) ?? 0,
       xp: num(r.props["XP par réalisation"]) ?? 0,
-      today: select(propByPrefix(r.props, HABIT_STATUS_PREFIX)),
+      // Un statut posé un jour précédent ne vaut pas pour aujourd'hui.
+      today:
+        r.lastEdited && toLocalISODate(new Date(r.lastEdited)) === today
+          ? select(propByPrefix(r.props, HABIT_STATUS_PREFIX))
+          : null,
     }))
     .sort((a, b) => b.streak - a.streak || b.best - a.best);
 }
@@ -181,6 +195,18 @@ export async function markQuestDone(pageId: string): Promise<void> {
   await notion().pages.update({
     page_id: pageId,
     properties: { Statut: { select: { name: QUEST_STATUS.done } } },
+  });
+}
+
+/** Annule une complétion : remet la quête dans son statut précédent (À faire / En cours). */
+export async function reopenQuest(pageId: string, status: string): Promise<void> {
+  if (status !== QUEST_STATUS.todo && status !== QUEST_STATUS.doing) {
+    throw new Error("Statut invalide.");
+  }
+  await retrieveIn(pageId, DATA_SOURCES.quests);
+  await notion().pages.update({
+    page_id: pageId,
+    properties: { Statut: { select: { name: status } } },
   });
 }
 

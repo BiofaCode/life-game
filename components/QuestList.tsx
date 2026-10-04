@@ -1,7 +1,7 @@
 "use client";
 
-import { completeQuest } from "@/app/actions";
-import type { Quest } from "@/lib/notion-types";
+import { completeQuest, undoQuest } from "@/app/actions";
+import { QUEST_STATUS, type Quest } from "@/lib/notion-types";
 import { formatDate } from "@/lib/format";
 import { useOptimisticDone } from "./useOptimisticDone";
 
@@ -29,13 +29,17 @@ export function QuestList({ quests, today }: { quests: Quest[]; today: string })
               <input
                 type="checkbox"
                 checked={false}
-                onChange={() => markDone(q.id, `⚔️ Quête terminée · +${q.xp} XP`)}
+                onChange={() =>
+                  markDone(q.id, `⚔️ Quête terminée · +${q.xp} XP`, () =>
+                    undoQuest(q.id, q.status ?? QUEST_STATUS.todo),
+                  )
+                }
                 aria-label={`Terminer : ${q.name}`}
                 className="size-6 shrink-0 appearance-none rounded-md border-2 border-dim checked:border-ok checked:bg-ok"
               />
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-medium">
-                  {q.status === "🟡 En cours" && <span className="mr-1 text-gold" title="En cours">▶</span>}
+                  {q.status === QUEST_STATUS.doing && <span className="mr-1 text-gold" title="En cours">▶</span>}
                   {q.name}
                 </span>
                 <span className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-dim">

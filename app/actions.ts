@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { isAuthorized, SESSION_COOKIE } from "@/lib/auth";
-import { markHabitDone, markQuestDone } from "@/lib/notion";
+import { markHabitDone, markQuestDone, reopenQuest } from "@/lib/notion";
 
 const UUID = /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i;
 
@@ -30,4 +30,8 @@ export async function completeQuest(pageId: string): Promise<ActionResult> {
 
 export async function completeHabit(pageId: string): Promise<ActionResult> {
   return run(pageId, markHabitDone);
+}
+
+export async function undoQuest(pageId: string, previousStatus: string): Promise<ActionResult> {
+  return run(pageId, (id) => reopenQuest(id, previousStatus));
 }

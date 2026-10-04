@@ -9,21 +9,41 @@ export function useOptimisticDone(action: (id: string) => Promise<ActionResult>)
   const [done, setDone] = useState<ReadonlySet<string>>(new Set());
   const [, startTransition] = useTransition();
 
-  function markDone(id: string, successText: string) {
+  const add = (id: string) => setDone((s) => new Set(s).add(id));
+  const remove = (id: string) =>
+    setDone((s) => {
+      const n = new Set(s);
+      n.delete(id);
+      return n;
+    });
+
+  function markDone(id: string, successText: string, undo?: () => Promise<ActionResult>) {
     if ("vibrate" in navigator) navigator.vibrate?.(15);
-    setDone((s) => new Set(s).add(id));
+    add(id);
     startTransition(async () => {
       const res = await action(id);
-      if (res.ok) {
-        toast(successText);
-      } else {
-        setDone((s) => {
-          const n = new Set(s);
-          n.delete(id);
-          return n;
-        });
+      if (!res.ok) {
+        remove(id);
         toast(res.error ?? "Erreur", "error");
+        return;
       }
+      toast(
+        successText,
+        "xp",
+        undo && {
+          label: "Annuler",
+          onClick: () => {
+            remove(id);
+            startTransition(async () => {
+              const r = await undo();
+              if (!r.ok) {
+                add(id);
+                toast(r.error ?? "Erreur", "error");
+              }
+            });
+          },
+        },
+      );
     });
   }
 
