@@ -1,6 +1,6 @@
 import "server-only";
 import { Client } from "@notionhq/client";
-import { DATA_SOURCES, TIMEZONE } from "./config";
+import { COINS_PER_XP, DATA_SOURCES, TIMEZONE } from "./config";
 import { currentStreak, onCheck, onUncheck, streakAtRisk } from "./streaks";
 import {
   HABIT_STATUS,
@@ -12,6 +12,8 @@ import {
   type Habit,
   type Project,
   type Quest,
+  type Reward,
+  type Shop,
   type XpStats,
 } from "./notion-types";
 
@@ -424,4 +426,120 @@ export async function getZoneXp(): Promise<Record<string, number>> {
     if (zone) out[zone] = (out[zone] ?? 0) + (num(r.props["XP"]) ?? 0);
   }
   return out;
+}
+
+/* ---------- Boutique ---------- */
+
+function checkbox(p?: Props[string]): boolean {
+  return p?.type === "checkbox" ? p.checkbox === true : false;
+}
+
+export async function getShop(): Promise<Shop> {
+  const [rewardRows, purchaseRows] = await Promise.all([
+    queryAll(DATA_SOURCES.rewards),
+    queryAll(DATA_SOURCES.purchases),
+  ]);
+  const rewards: Reward[] = rewardRows
+    .filter((r) => checkbox(r.props["Active"]))
+    .map((r) => ({
+      id: r.id,
+      name: title(r.props["Récompense"]),
+      cost: Math.max(0, num(r.props["Coût"]) ?? 0),
+      category: select(r.props["Catégorie"]),
+    }))
+    .sort((a, b) => a.cost - b.cost);
+  const purchases = purchaseRows.map((r) => ({
+    id: r.id,
+    name: title(r.props["Achat"]),
+    cost: num(r.props["Coût"]) ?? 0,
+    date: date(r.props["Date"])?.slice(0, 10) ?? "",
+  }));
+  return {
+    rewards,
+    spent: purchases.reduce((s, p) => s + p.cost, 0),
+    recent: purchases.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
+  };
+}
+
+/** Solde de pièces : XP validé au Journal × COINS_PER_XP − achats. */
+export function coinBalance(totalXp: number, spent: number): number {
+  return Math.floor(totalXp * COINS_PER_XP) - spent;
+}
+
+/** Achète une récompense si le solde suffit ; renvoie le nouveau solde. */
+export async function buyReward(pageId: string): Promise<number> {
+  const props = await retrieveIn(pageId, DATA_SOURCES.rewards);
+  const name = title(props["Récompense"]);
+  const cost = Math.max(0, num(props["Coût"]) ?? 0);
+  const [stats, shop] = await Promise.all([getXpStats(), getShop()]);
+  const balance = coinBalance(stats.total, shop.spent);
+  if (cost > balance) throw new InsufficientCoins(cost - balance);
+  await notion().pages.create({
+    parent: { type: "data_source_id", data_source_id: DATA_SOURCES.purchases },
+    properties: {
+      Achat: { title: [{ text: { content: name } }] },
+      "Coût": { number: cost },
+      Date: { date: { start: todayISO() } },
+    },
+  });
+  return balance - cost;
+}
+
+export class InsufficientCoins extends Error {
+  constructor(public missing: number) {
+    super(`Il te manque ${missing} pièces.`);
+  }
+}
+
+export async function createReward(r: { name: string; cost: number; category: string | null }): Promise<void> {
+  await notion().pages.create({
+    parent: { type: "data_source_id", data_source_id: DATA_SOURCES.rewards },
+    properties: {
+      "Récompense": { title: [{ text: { content: r.name } }] },
+      "Coût": { number: r.cost },
+      Active: { checkbox: true },
+      ...(r.category ? { "Catégorie": { select: { name: r.category } } } : {}),
+    },
+  });
+}
+
+/* ---------- Abonnements push ---------- */
+
+export interface StoredSubscription {
+  pageId: string;
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } };
+}
+
+export async function listSubscriptions(): Promise<StoredSubscription[]> {
+  const rows = await queryAll(DATA_SOURCES.devices);
+  const out: StoredSubscription[] = [];
+  for (const r of rows) {
+    try {
+      out.push({ pageId: r.id, subscription: JSON.parse(text(r.props["Abonnement"])) });
+    } catch {
+      /* ligne illisible : ignorée */
+    }
+  }
+  return out;
+}
+
+/** Enregistre (ou remplace) l'abonnement push d'un appareil. */
+export async function saveSubscription(
+  sub: StoredSubscription["subscription"],
+  device: string,
+): Promise<void> {
+  const existing = await queryAll(DATA_SOURCES.devices, { property: "Endpoint", url: { equals: sub.endpoint } });
+  await Promise.all(existing.map((r) => notion().pages.update({ page_id: r.id, in_trash: true })));
+  await notion().pages.create({
+    parent: { type: "data_source_id", data_source_id: DATA_SOURCES.devices },
+    properties: {
+      Appareil: { title: [{ text: { content: device.slice(0, 100) } }] },
+      Endpoint: { url: sub.endpoint },
+      Abonnement: { rich_text: [{ text: { content: JSON.stringify(sub) } }] },
+    },
+  });
+}
+
+export async function deleteSubscription(pageId: string): Promise<void> {
+  await notion().pages.update({ page_id: pageId, in_trash: true });
 }

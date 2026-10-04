@@ -113,3 +113,19 @@ export interface JournalEntry {
   mood: string | null;
   notes: string;
 }
+
+export const REWARD_CATEGORIES = ["Détente", "Food", "Sortie", "Achat", "Autre"] as const;
+
+export interface Reward {
+  id: string;
+  name: string;
+  cost: number;
+  category: string | null;
+}
+
+export interface Shop {
+  rewards: Reward[];
+  /** Pièces dépensées au total. */
+  spent: number;
+  recent: { id: string; name: string; cost: number; date: string }[];
+}

@@ -9,7 +9,13 @@ export const DATA_SOURCES = {
   habits: "7ed0d3d3-301f-448d-9b75-f3cec74f08ba",
   projects: "ef6ecc38-3007-4f14-9ab3-5843adb753c5",
   journal: "d1861d2c-aced-4687-bd76-a9b0872af293",
+  rewards: "73958824-011c-4b29-b6c2-7f687c34003b",
+  purchases: "e6fb9a07-676a-4caa-b188-297516deeff4",
+  devices: "1147ea40-b33b-47b4-ab3d-882da535707a",
 } as const;
+
+/** Pièces gagnées par point d'XP validé au Journal (monnaie de la boutique). */
+export const COINS_PER_XP = 1;
 
 /** Fuseau utilisé pour savoir ce qu'est « aujourd'hui » (dates en retard). */
 export const TIMEZONE = "Europe/Paris";
