@@ -19,7 +19,7 @@ export function HabitList({ habits }: { habits: Habit[] }) {
           <li key={h.id}>
             <button
               type="button"
-              onClick={() => toggle(h.id, !d, d ? undefined : `🔥 ${h.name}`)}
+              onClick={() => toggle(h.id, !d, d ? undefined : `🔥 ${h.name} · série ${h.streak + 1}`)}
               aria-pressed={d}
               className={`flex w-full items-center gap-3 rounded-2xl border bg-panel px-3 py-3 text-left active:scale-[0.99] active:bg-edge/40 ${
                 d ? "border-ok/40" : missed ? "border-danger/40" : "border-edge"

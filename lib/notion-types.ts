@@ -52,6 +52,7 @@ export interface Habit {
   best: number;
   xp: number;
   frequency: string | null;
+  lastDone: string | null;
   /** Statut posé aujourd'hui, sinon null. */
   today: string | null;
 }
