@@ -1,3 +1,4 @@
+import { authEnabled } from "@/lib/auth";
 import { levelFromXp } from "@/lib/config";
 import { getHabits, getProjects, getQuests, getTotalXp, todayISO } from "@/lib/notion";
 import { QuestList } from "@/components/QuestList";
@@ -23,6 +24,11 @@ export default async function Home() {
 
   return (
     <main className="mx-auto max-w-lg px-4 pb-12 pt-4">
+      {!authEnabled() && (
+        <p className="mb-3 rounded-xl border border-gold/50 bg-gold/10 px-3 py-2 text-xs text-gold">
+          ⚠ App non protégée : ajoute APP_PASSWORD dans les variables Vercel.
+        </p>
+      )}
       <header>
         {lvl ? (
           <Card className="bg-gradient-to-br from-panel to-[#1b1840]">

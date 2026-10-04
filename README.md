@@ -11,5 +11,5 @@ La formule de niveau et les IDs des bases sont dans `lib/config.ts`.
 Icônes PWA : `npm run icons`.
 
 ## Vercel
-Ajoute `NOTION_API_KEY` dans les variables d'environnement. L'app n'a pas d'authentification :
-active la *Deployment Protection* de Vercel pour ne pas exposer tes données.
+Ajoute `NOTION_API_KEY` et `APP_PASSWORD` dans les variables d'environnement.
+L'app demandera ce mot de passe une fois par appareil (cookie valable 1 an).
