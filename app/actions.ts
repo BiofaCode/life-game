@@ -131,11 +131,11 @@ export async function closeDay(_prev: ActionResult | null, form: FormData): Prom
   return { ok: true };
 }
 
-export async function purchase(pageId: string): Promise<ActionResult> {
+export async function purchase(pageId: string, retro = false): Promise<ActionResult> {
   if (!(await authorized())) return { ok: false, error: "Session expirée, reconnecte-toi." };
   if (!UUID.test(pageId)) return { ok: false, error: "ID invalide" };
   try {
-    await buyReward(pageId);
+    await buyReward(pageId, retro === true);
   } catch (e) {
     if (e instanceof InsufficientCoins) return { ok: false, error: e.message };
     console.error("purchase", e);

@@ -114,7 +114,7 @@ export interface JournalEntry {
   notes: string;
 }
 
-export const REWARD_CATEGORIES = ["Détente", "Food", "Sortie", "Achat", "Autre"] as const;
+export const REWARD_CATEGORIES = ["Soirée", "Food", "Sortie", "Détente", "Achat", "Autre"] as const;
 
 export interface Reward {
   id: string;
@@ -127,5 +127,5 @@ export interface Shop {
   rewards: Reward[];
   /** Pièces dépensées au total. */
   spent: number;
-  recent: { id: string; name: string; cost: number; date: string }[];
+  recent: { id: string; name: string; cost: number; date: string; retro: boolean }[];
 }
