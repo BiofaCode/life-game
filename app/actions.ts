@@ -10,6 +10,7 @@ import {
   buyReward,
   createJournalEntry,
   createReward,
+  createSubQuest,
   InsufficientCoins,
   saveSubscription,
   createQuest,
@@ -198,4 +199,12 @@ export async function sendTestPush(): Promise<ActionResult> {
     console.error("sendTestPush", e);
     return { ok: false, error: "Envoi impossible." };
   }
+}
+
+export async function addSubQuest(parentId: string, name: string, xp: number): Promise<ActionResult> {
+  const clean = String(name).trim().slice(0, 200);
+  if (!clean) return { ok: false, error: "Donne un nom à la sous-quête." };
+  const x = Math.round(Number(xp));
+  if (!Number.isFinite(x) || x < 0 || x > 10_000) return { ok: false, error: "XP invalide." };
+  return run(parentId, () => createSubQuest(parentId, clean, x));
 }

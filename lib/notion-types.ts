@@ -19,6 +19,10 @@ export interface Quest {
   difficulty: string | null;
   notes: string;
   url: string;
+  /** Quête parente (si c'est une sous-quête). */
+  parentId: string | null;
+  /** Nombre total de sous-quêtes (toutes, y compris terminées). */
+  subCount: number;
 }
 
 export interface DayXp {
