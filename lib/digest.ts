@@ -1,7 +1,7 @@
 import "server-only";
 import { dayDiff } from "./format";
 import { getHabits, getQuests, getXpStats, todayISO } from "./notion";
-import { HABIT_STATUS } from "./notion-types";
+import { HABIT_STATUS, questXp } from "./notion-types";
 import type { PushPayload } from "./push";
 
 /** Rappel du soir : séries en danger, quêtes du jour restantes, XP à valider. */
@@ -12,7 +12,7 @@ export async function eveningDigest(): Promise<PushPayload> {
   const atRisk = habits.filter((h) => h.atRisk && h.today !== HABIT_STATUS.done);
   const dueLeft = quests.filter((q) => !q.done && q.due !== null && dayDiff(today, q.due) <= 0);
   const earned =
-    quests.filter((q) => q.done).reduce((s, q) => s + q.xp, 0) +
+    quests.filter((q) => q.done).reduce((s, q) => s + questXp(q), 0) +
     habits.filter((h) => h.today === HABIT_STATUS.done).reduce((s, h) => s + h.xp, 0);
   const pending = Math.max(0, Math.round(earned - xp.today));
 

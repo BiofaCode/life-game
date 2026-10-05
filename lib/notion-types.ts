@@ -25,6 +25,16 @@ export interface Quest {
   subCount: number;
   /** Projet auquel la quête est rattachée. */
   projectId: string | null;
+  /** Boss de la semaine : rapporte double XP. */
+  boss: boolean;
+}
+
+/** Multiplicateur d'XP du boss de la semaine. */
+export const BOSS_MULTIPLIER = 2;
+
+/** XP réellement gagné pour une quête (doublé pour le boss). */
+export function questXp(q: Pick<Quest, "xp" | "boss">): number {
+  return q.boss ? q.xp * BOSS_MULTIPLIER : q.xp;
 }
 
 export interface DayXp {
@@ -139,5 +149,7 @@ export interface Shop {
   rewards: Reward[];
   /** Pièces dépensées au total. */
   spent: number;
+  /** Nombre total d'achats. */
+  count: number;
   recent: { id: string; name: string; cost: number; date: string; retro: boolean }[];
 }

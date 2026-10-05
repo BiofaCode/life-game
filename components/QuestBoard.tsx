@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { toggleQuest } from "@/app/actions";
 import { dayDiff, priorityIcon, relativeDue, zoneEmoji } from "@/lib/format";
-import { QUEST_STATUS, type Quest } from "@/lib/notion-types";
+import { QUEST_STATUS, questXp, type Quest } from "@/lib/notion-types";
 import { Check } from "./Check";
 import { QuestDetails } from "./QuestDetails";
 import { useOptimisticToggle } from "./useOptimisticToggle";
@@ -96,7 +96,8 @@ export function QuestBoard({
     (filter.startsWith("p:") && q.projectId === filter.slice(2));
 
   const opened = quests.find((q) => q.id === openId) ?? null;
-  const toggleQ = (q: Quest, d: boolean) => toggle(q.id, !d, d ? undefined : `⚔️ +${q.xp} XP`);
+  const toggleQ = (q: Quest, d: boolean) =>
+    toggle(q.id, !d, d ? undefined : q.boss ? `👑 Boss vaincu ! +${questXp(q)} XP` : `⚔️ +${questXp(q)} XP`);
 
   const isToday = (q: Quest) =>
     q.status === QUEST_STATUS.doing || (q.due !== null && dayDiff(today, q.due) <= 0);
@@ -106,7 +107,7 @@ export function QuestBoard({
     .filter((q) => view === "all" || isToday(q))
     .sort(SORTS[sort].fn);
   const done = quests.filter((q) => isDone(q.id, q.done) && inZone(q));
-  const xpDone = done.reduce((s, q) => s + q.xp, 0);
+  const xpDone = done.reduce((s, q) => s + questXp(q), 0);
   const hiddenCount =
     view === "today" ? topLevel.filter((q) => !isDone(q.id, q.done) && inZone(q) && !isToday(q)).length : 0;
 
@@ -117,7 +118,10 @@ export function QuestBoard({
     const openKids = kids.filter((k) => !isDone(k.id, k.done)).length;
     const subDone = q.subCount - openKids;
     return (
-      <li key={q.id} className="flex items-stretch rounded-2xl border border-edge bg-panel">
+      <li
+        key={q.id}
+        className={`flex items-stretch rounded-2xl border bg-panel ${q.boss && !d ? "border-gold/70 shadow-[0_0_12px] shadow-gold/20" : "border-edge"}`}
+      >
         <button
           type="button"
           onClick={() => toggleQ(q, d)}
@@ -134,6 +138,7 @@ export function QuestBoard({
         >
           <span className="min-w-0 flex-1">
             <span className={`line-clamp-2 font-medium leading-snug ${d ? "text-dim line-through" : ""}`}>
+              {q.boss && <span className="mr-1">👑</span>}
               {q.status === QUEST_STATUS.doing && !d && <span className="mr-1 text-gold">▶</span>}
               {q.name}
             </span>
@@ -163,7 +168,7 @@ export function QuestBoard({
               d ? "bg-ok/15 text-ok" : "bg-xp/15 text-xp-soft"
             }`}
           >
-            +{q.xp}
+            +{questXp(q)}
           </span>
         </button>
       </li>
@@ -175,8 +180,40 @@ export function QuestBoard({
       active ? "border-gold bg-gold/15 text-gold" : "border-edge text-dim"
     }`;
 
+  const boss = topLevel.find((q) => q.boss) ?? null;
+  const bossDone = boss ? isDone(boss.id, boss.done) : false;
+  // Jours restants jusqu'à dimanche inclus.
+  const weekday = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7;
+  const daysLeft = 7 - weekday;
+
   return (
     <div className="space-y-4">
+      {boss ? (
+        <button
+          type="button"
+          onClick={() => setOpenId(boss.id)}
+          className={`w-full rounded-2xl border p-4 text-left ${
+            bossDone ? "border-ok/50 bg-ok/10" : "border-gold/60 bg-gradient-to-br from-panel to-hero shadow-[0_0_18px] shadow-gold/15"
+          }`}
+        >
+          <p className="text-[11px] font-bold uppercase tracking-widest text-gold">
+            {bossDone ? "🏆 Boss vaincu !" : `👑 Boss de la semaine · ${daysLeft} j restant${daysLeft > 1 ? "s" : ""}`}
+          </p>
+          <p className={`mt-1 text-lg font-black leading-snug ${bossDone ? "text-dim line-through" : ""}`}>{boss.name}</p>
+          <p className="mt-1 text-xs text-dim">
+            <span className="font-bold text-gold">+{questXp(boss)} XP</span> (×2)
+            {boss.subCount > 0 &&
+              ` · 🧩 ${boss.subCount - childrenOf(boss.id).filter((k) => !isDone(k.id, k.done)).length}/${boss.subCount}`}
+            {boss.due && ` · ${relativeDue(boss.due, today)}`}
+          </p>
+        </button>
+      ) : (
+        <p className="rounded-2xl border border-dashed border-gold/40 px-4 py-3 text-xs text-dim">
+          👑 Pas de boss cette semaine : ouvre une grosse quête et touche « Définir comme boss » pour gagner{" "}
+          <span className="font-bold text-gold">double XP</span>.
+        </p>
+      )}
+
       {/* Barre d'outils : vue, tri, zones */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">

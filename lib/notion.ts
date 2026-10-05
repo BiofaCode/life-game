@@ -231,6 +231,7 @@ export async function getQuests(): Promise<Quest[]> {
           parentId: relation(r.props["Quête parente"])[0] ?? null,
           subCount: relation(r.props["Sous-quêtes"]).length,
           projectId: relation(r.props["Projet"])[0] ?? null,
+          boss: checkbox(r.props["Boss"]),
         },
       };
     })
@@ -340,7 +341,16 @@ export async function setQuestDone(pageId: string, done: boolean): Promise<void>
 /** Change le statut (À faire / En cours) et/ou l'échéance d'une quête. */
 export async function updateQuest(
   pageId: string,
-  patch: { status?: string; due?: string | null },
+  patch: {
+    status?: string;
+    due?: string | null;
+    name?: string;
+    xp?: number;
+    priority?: string;
+    zone?: string | null;
+    notes?: string;
+    boss?: boolean;
+  },
 ): Promise<void> {
   await retrieveIn(pageId, DATA_SOURCES.quests);
   await notion().pages.update({
@@ -348,6 +358,14 @@ export async function updateQuest(
     properties: {
       ...(patch.status ? { Statut: { select: { name: patch.status } } } : {}),
       ...(patch.due !== undefined ? { "Échéance": { date: patch.due ? { start: patch.due } : null } } : {}),
+      ...(patch.name ? { "Quête": { title: [{ text: { content: patch.name } }] } } : {}),
+      ...(patch.xp !== undefined ? { XP: { number: patch.xp } } : {}),
+      ...(patch.priority ? { "Priorité": { select: { name: patch.priority } } } : {}),
+      ...(patch.zone !== undefined ? { Zone: { select: patch.zone ? { name: patch.zone } : null } } : {}),
+      ...(patch.notes !== undefined
+        ? { Notes: { rich_text: patch.notes ? [{ text: { content: patch.notes.slice(0, 2000) } }] : [] } }
+        : {}),
+      ...(patch.boss !== undefined ? { Boss: { checkbox: patch.boss } } : {}),
     },
   });
 }
@@ -458,18 +476,18 @@ export async function createJournalEntry(e: JournalEntry): Promise<void> {
   });
 }
 
-/** XP total des quêtes terminées, par zone (base des attributs RPG). */
-export async function getZoneXp(): Promise<Record<string, number>> {
+/** Quêtes terminées : XP par zone (attributs RPG) et nombre total (succès). */
+export async function getZoneXp(): Promise<{ byZone: Record<string, number>; doneCount: number }> {
   const rows = await queryAll(DATA_SOURCES.quests, {
     property: "Statut",
     select: { equals: QUEST_STATUS.done },
   });
-  const out: Record<string, number> = {};
+  const byZone: Record<string, number> = {};
   for (const r of rows) {
     const zone = select(r.props["Zone"]);
-    if (zone) out[zone] = (out[zone] ?? 0) + (num(r.props["XP"]) ?? 0);
+    if (zone) byZone[zone] = (byZone[zone] ?? 0) + (num(r.props["XP"]) ?? 0);
   }
-  return out;
+  return { byZone, doneCount: rows.length };
 }
 
 /* ---------- Boutique ---------- */
@@ -501,6 +519,7 @@ export async function getShop(): Promise<Shop> {
   }));
   return {
     rewards,
+    count: purchases.length,
     spent: purchases.reduce((s, p) => s + p.cost, 0),
     recent: purchases.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5),
   };
@@ -602,4 +621,18 @@ export async function setQuestProject(pageId: string, projectId: string | null):
     page_id: pageId,
     properties: { Projet: { relation: projectId ? [{ id: projectId }] : [] } },
   });
+}
+
+/** Désigne (ou retire) le boss de la semaine : une seule quête boss à la fois. */
+export async function setQuestBoss(pageId: string, on: boolean): Promise<void> {
+  await retrieveIn(pageId, DATA_SOURCES.quests);
+  if (on) {
+    const current = await queryAll(DATA_SOURCES.quests, { property: "Boss", checkbox: { equals: true } });
+    await Promise.all(
+      current
+        .filter((r) => r.id !== pageId)
+        .map((r) => notion().pages.update({ page_id: r.id, properties: { Boss: { checkbox: false } } })),
+    );
+  }
+  await notion().pages.update({ page_id: pageId, properties: { Boss: { checkbox: on } } });
 }

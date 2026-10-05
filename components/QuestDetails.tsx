@@ -1,9 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { addSubQuest, linkQuestProject, setQuestDue, setQuestStatus, type ActionResult } from "@/app/actions";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import {
+  addSubQuest,
+  editQuest,
+  linkQuestProject,
+  setQuestDue,
+  setQuestStatus,
+  toggleBoss,
+  type ActionResult,
+} from "@/app/actions";
 import { addDays, formatDate, relativeDue, zoneEmoji } from "@/lib/format";
-import { QUEST_STATUS, type Quest } from "@/lib/notion-types";
+import { QUEST_PRIORITIES, QUEST_STATUS, QUEST_ZONES, questXp, type Quest } from "@/lib/notion-types";
 import { Check } from "./Check";
 import { Sheet } from "./Sheet";
 import { toast } from "./Toast";
@@ -14,6 +22,66 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="text-dim">{label}</span>
       <span className="text-right font-medium">{children}</span>
     </div>
+  );
+}
+
+/** Formulaire de modification (nom, XP, priorité, zone, notes). */
+function EditQuestForm({ q, onDone }: { q: Quest; onDone: () => void }) {
+  const [state, action, pending] = useActionState(editQuest, null);
+  useEffect(() => {
+    if (state?.ok) {
+      toast("✏️ Quête modifiée");
+      onDone();
+    }
+  }, [state, onDone]);
+  const field = "w-full rounded-xl border border-edge bg-well px-3 py-2.5 text-base outline-none focus:border-xp";
+  const label = "mb-1 block text-xs font-bold uppercase tracking-wider text-dim";
+  return (
+    <form action={action} className="space-y-3">
+      <input type="hidden" name="id" value={q.id} />
+      <label className="block">
+        <span className={label}>Nom</span>
+        <input name="name" required maxLength={200} defaultValue={q.name} className={field} />
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block">
+          <span className={label}>XP</span>
+          <input name="xp" type="number" inputMode="numeric" min={0} max={10000} defaultValue={q.xp} className={field} />
+        </label>
+        <label className="block">
+          <span className={label}>Priorité</span>
+          <select name="priority" defaultValue={q.priority ?? "📌 Normale"} className={field}>
+            {QUEST_PRIORITIES.map((p) => (
+              <option key={p}>{p}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label className="block">
+        <span className={label}>Zone</span>
+        <select name="zone" defaultValue={q.zone ?? ""} className={field}>
+          <option value="">— Aucune —</option>
+          {QUEST_ZONES.map((z) => (
+            <option key={z} value={z}>
+              {zoneEmoji(z)} {z}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="block">
+        <span className={label}>Notes</span>
+        <textarea name="notes" rows={3} defaultValue={q.notes} maxLength={2000} className={`${field} text-sm`} />
+      </label>
+      {state && !state.ok && <p className="text-sm text-danger">{state.error}</p>}
+      <div className="flex gap-2">
+        <button type="button" onClick={onDone} className="flex-1 rounded-xl border border-edge bg-well py-3 font-semibold">
+          Annuler
+        </button>
+        <button disabled={pending} className="flex-1 rounded-xl bg-xp py-3 font-bold text-xp-ink disabled:opacity-60">
+          {pending ? "…" : "Enregistrer"}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -42,6 +110,7 @@ export function QuestDetails({
   const [pending, startTransition] = useTransition();
   const [subName, setSubName] = useState("");
   const [subXp, setSubXp] = useState(5);
+  const [editing, setEditing] = useState(false);
   const olderDone = Math.max(0, q.subCount - subQuests.length);
 
   function createSub(e: React.FormEvent) {
@@ -74,7 +143,11 @@ export function QuestDetails({
     "rounded-xl border border-edge bg-well px-3 py-3 text-sm font-semibold active:scale-[0.98] disabled:opacity-50";
 
   return (
-    <Sheet title={q.name} onClose={onClose}>
+    <Sheet title={`${q.boss ? "👑 " : ""}${q.name}`} onClose={onClose}>
+      {editing ? (
+        <EditQuestForm q={q} onDone={() => setEditing(false)} />
+      ) : (
+      <>
       <div className="mb-4">
         <Row label="Statut">{done ? QUEST_STATUS.done : (q.status ?? "—")}</Row>
         {q.priority && <Row label="Priorité">{q.priority}</Row>}
@@ -110,7 +183,9 @@ export function QuestDetails({
           </Row>
         )}
         <Row label="Récompense">
-          <span className="text-xp-soft">+{q.xp} XP</span>
+          <span className="text-xp-soft">
+            +{questXp(q)} XP{q.boss && <span className="ml-1 text-gold">(boss ×2)</span>}
+          </span>
         </Row>
       </div>
 
@@ -191,7 +266,7 @@ export function QuestDetails({
             done ? "border border-edge bg-well text-ink" : "bg-ok text-panel"
           }`}
         >
-          {done ? "↩︎ Décocher" : `✓ Terminer · +${q.xp} XP`}
+          {done ? "↩︎ Décocher" : `✓ Terminer · +${questXp(q)} XP`}
         </button>
 
         {!done && (
@@ -230,6 +305,26 @@ export function QuestDetails({
           </>
         )}
 
+        {!done && !q.parentId && (
+          <button
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              act(
+                () => toggleBoss(q.id, !q.boss),
+                q.boss ? "Boss retiré" : "👑 Nouveau boss de la semaine : double XP !",
+              )
+            }
+            className={`${btn} w-full ${q.boss ? "" : "border-gold/50 text-gold"}`}
+          >
+            {q.boss ? "Retirer le statut de boss" : "👑 Définir comme boss de la semaine (×2 XP)"}
+          </button>
+        )}
+
+        <button type="button" onClick={() => setEditing(true)} className={`${btn} w-full`}>
+          ✏️ Modifier la quête
+        </button>
+
         {q.url && (
           <a
             href={q.url}
@@ -241,6 +336,8 @@ export function QuestDetails({
           </a>
         )}
       </div>
+      </>
+      )}
     </Sheet>
   );
 }

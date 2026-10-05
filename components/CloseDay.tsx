@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { closeDay } from "@/app/actions";
-import { HABIT_STATUS, MOODS, type Habit, type Quest } from "@/lib/notion-types";
+import { HABIT_STATUS, MOODS, questXp, type Habit, type Quest } from "@/lib/notion-types";
 import { Sheet } from "./Sheet";
 import { toast } from "./Toast";
 
@@ -28,7 +28,7 @@ export function CloseDay({
   const suggested = pendingXp;
 
   const notes = [
-    doneQuests.length ? `Quêtes : ${doneQuests.map((q) => `${q.name} (+${q.xp})`).join(", ")}` : "",
+    doneQuests.length ? `Quêtes : ${doneQuests.map((q) => `${q.boss ? "👑 " : ""}${q.name} (+${questXp(q)})`).join(", ")}` : "",
     doneHabits.length ? `Habitudes : ${doneHabits.map((h) => `${h.name} (+${h.xp})`).join(", ")}` : "",
   ]
     .filter(Boolean)

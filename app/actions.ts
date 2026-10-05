@@ -20,6 +20,7 @@ import {
   setProjectProgress,
   setProjectStatus,
   setQuestDone,
+  setQuestBoss,
   setQuestProject,
   updateQuest,
 } from "@/lib/notion";
@@ -215,4 +216,23 @@ export async function addSubQuest(parentId: string, name: string, xp: number): P
 export async function linkQuestProject(pageId: string, projectId: string | null): Promise<ActionResult> {
   if (projectId !== null && !UUID.test(projectId)) return { ok: false, error: "Projet invalide" };
   return run(pageId, () => setQuestProject(pageId, projectId));
+}
+
+/** Modifie une quête depuis sa fiche (nom, XP, priorité, zone, notes). */
+export async function editQuest(_prev: ActionResult | null, form: FormData): Promise<ActionResult> {
+  const id = String(form.get("id") ?? "");
+  const name = String(form.get("name") ?? "").trim().slice(0, 200);
+  const xp = Math.round(Number(form.get("xp")));
+  const priority = String(form.get("priority") ?? "");
+  const zone = String(form.get("zone") ?? "");
+  const notes = String(form.get("notes") ?? "").trim();
+  if (!name) return { ok: false, error: "Le nom est obligatoire." };
+  if (!Number.isFinite(xp) || xp < 0 || xp > 10_000) return { ok: false, error: "XP invalide." };
+  if (!(QUEST_PRIORITIES as readonly string[]).includes(priority)) return { ok: false, error: "Priorité invalide." };
+  if (zone && !(QUEST_ZONES as readonly string[]).includes(zone)) return { ok: false, error: "Zone invalide." };
+  return run(id, () => updateQuest(id, { name, xp, priority, zone: zone || null, notes }));
+}
+
+export async function toggleBoss(pageId: string, on: boolean): Promise<ActionResult> {
+  return run(pageId, () => setQuestBoss(pageId, on === true));
 }
