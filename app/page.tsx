@@ -1,9 +1,11 @@
 import { authEnabled } from "@/lib/auth";
-import { levelFromXp } from "@/lib/config";
+import { computeAchievements } from "@/lib/achievements";
+import { ATTRIBUTES, attributeLevel, levelFromXp } from "@/lib/config";
 import { dayDiff, formatDate } from "@/lib/format";
 import { coinBalance, getHabits, getProjects, getQuests, getShop, getXpStats, getZoneXp, todayISO } from "@/lib/notion";
-import { HABIT_STATUS, PROJECT_STATUS } from "@/lib/notion-types";
+import { HABIT_STATUS, PROJECT_STATUS, questXp } from "@/lib/notion-types";
 import { AddQuest } from "@/components/AddQuest";
+import { Achievements } from "@/components/Achievements";
 import { Attributes } from "@/components/Attributes";
 import { CloseDay } from "@/components/CloseDay";
 import { DailyGoal } from "@/components/DailyGoal";
@@ -49,7 +51,8 @@ export default async function Home() {
   const quests = ok(questsR);
   const habits = ok(habitsR);
   const projects = ok(projectsR);
-  const zoneXp = ok(zoneR);
+  const zoneData = ok(zoneR);
+  const zoneXp = zoneData?.byZone ?? null;
   const shop = ok(shopR);
   const lvl = xp ? levelFromXp(xp.total) : null;
   const today = todayISO();
@@ -60,7 +63,7 @@ export default async function Home() {
   const habitsDone = habits?.filter((h) => h.today === HABIT_STATUS.done).length ?? 0;
   // XP gagné aujourd'hui dans l'app, pas encore inscrit au Journal.
   const earnedToday =
-    (quests?.filter((q) => q.done).reduce((s, q) => s + q.xp, 0) ?? 0) +
+    (quests?.filter((q) => q.done).reduce((s, q) => s + questXp(q), 0) ?? 0) +
     (habits?.filter((h) => h.today === HABIT_STATUS.done).reduce((s, h) => s + h.xp, 0) ?? 0);
   const pendingXp = Math.max(0, Math.round(earnedToday - (xp?.today ?? 0)));
   const bestHabit = habits?.reduce<(typeof habits)[number] | null>((b, h) => (!b || h.best > b.best ? h : b), null);
@@ -101,8 +104,28 @@ export default async function Home() {
       </div>
     );
 
+  const achievements =
+    xp && lvl
+      ? computeAchievements({
+          level: lvl.level,
+          journalEntries: xp.entries,
+          journalStreak: xp.activeStreak,
+          bestDayXp: xp.bestDay?.xp ?? 0,
+          questsDone: zoneData?.doneCount ?? 0,
+          bestHabitStreak: Math.max(0, ...(habits ?? []).map((h) => h.best)),
+          purchases: shop?.count ?? 0,
+          balance: shop ? coinBalance(xp.total, shop.spent) : 0,
+          attributesLv2: zoneXp ? ATTRIBUTES.filter((a) => attributeLevel(zoneXp[a.zone] ?? 0).level >= 2).length : 0,
+        })
+      : null;
+
   const statsTab = (
     <>
+      {achievements && (
+        <Section title="🏆 Succès">
+          <Achievements list={achievements} />
+        </Section>
+      )}
       {zoneXp && (
         <Section title="🧙 Personnage">
           <Attributes zoneXp={zoneXp} />
