@@ -87,6 +87,9 @@ function text(p?: Props[string]): string {
   const arr = p?.type === "rich_text" ? (p.rich_text as { plain_text: string }[]) : [];
   return arr.map((t) => t.plain_text).join("");
 }
+function relation(p?: Props[string]): string[] {
+  return p?.type === "relation" ? ((p.relation as { id: string }[]) ?? []).map((r) => r.id) : [];
+}
 function date(p?: Props[string]): string | null {
   return p?.type === "date" ? ((p.date as { start: string } | null)?.start ?? null) : null;
 }
@@ -225,6 +228,9 @@ export async function getQuests(): Promise<Quest[]> {
           difficulty: select(r.props["Difficulté"]),
           notes: text(r.props["Notes"]),
           url: r.url,
+          parentId: relation(r.props["Quête parente"])[0] ?? null,
+          subCount: relation(r.props["Sous-quêtes"]).length,
+          projectId: relation(r.props["Projet"])[0] ?? null,
         },
       };
     })
@@ -377,7 +383,7 @@ export async function setHabitDone(pageId: string, done: boolean): Promise<void>
 }
 
 /** Crée une quête 🔴 À faire. Les valeurs sont validées contre les options connues. */
-export async function createQuest(q: NewQuest): Promise<void> {
+export async function createQuest(q: NewQuest & { parentId?: string }): Promise<void> {
   await notion().pages.create({
     parent: { type: "data_source_id", data_source_id: DATA_SOURCES.quests },
     properties: {
@@ -387,7 +393,23 @@ export async function createQuest(q: NewQuest): Promise<void> {
       XP: { number: q.xp },
       ...(q.zone ? { Zone: { select: { name: q.zone } } } : {}),
       ...(q.due ? { "Échéance": { date: { start: q.due } } } : {}),
+      ...(q.parentId ? { "Quête parente": { relation: [{ id: q.parentId }] } } : {}),
+      ...(q.projectId ? { Projet: { relation: [{ id: q.projectId }] } } : {}),
     },
+  });
+}
+
+/** Ajoute une sous-quête : hérite de la zone et de la priorité de la quête parente. */
+export async function createSubQuest(parentId: string, name: string, xp: number): Promise<void> {
+  const parent = await retrieveIn(parentId, DATA_SOURCES.quests);
+  await createQuest({
+    name,
+    xp,
+    priority: select(parent["Priorité"]) ?? "📌 Normale",
+    zone: select(parent["Zone"]),
+    due: null,
+    parentId,
+    projectId: relation(parent["Projet"])[0] ?? null,
   });
 }
 
@@ -570,4 +592,14 @@ export async function saveSubscription(
 
 export async function deleteSubscription(pageId: string): Promise<void> {
   await notion().pages.update({ page_id: pageId, in_trash: true });
+}
+
+/** Rattache une quête à un projet (ou la détache avec null). */
+export async function setQuestProject(pageId: string, projectId: string | null): Promise<void> {
+  await retrieveIn(pageId, DATA_SOURCES.quests);
+  if (projectId) await retrieveIn(projectId, DATA_SOURCES.projects);
+  await notion().pages.update({
+    page_id: pageId,
+    properties: { Projet: { relation: projectId ? [{ id: projectId }] : [] } },
+  });
 }

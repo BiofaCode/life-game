@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { changeProjectStatus } from "@/app/actions";
 import { formatDate, priorityIcon, zoneEmoji } from "@/lib/format";
-import { PROJECT_STATUS, type Project } from "@/lib/notion-types";
+import { PROJECT_STATUS, type Project, type Quest } from "@/lib/notion-types";
 import { ProjectCard } from "./ProjectCard";
 import { Sheet } from "./Sheet";
 import { toast } from "./Toast";
@@ -15,7 +15,7 @@ const STATUS_ACTIONS = [
   { status: PROJECT_STATUS.done, label: "✅ Terminé", toast: "🏆 Projet terminé !" },
 ];
 
-function ProjectSheet({ p, onClose }: { p: Project; onClose: () => void }) {
+function ProjectSheet({ p, quests, onClose }: { p: Project; quests: Quest[]; onClose: () => void }) {
   const [pending, startTransition] = useTransition();
 
   function setStatus(status: string, okText: string) {
@@ -46,6 +46,22 @@ function ProjectSheet({ p, onClose }: { p: Project; onClose: () => void }) {
         ))}
       </dl>
       {p.description && <p className="mb-4 whitespace-pre-line text-sm text-dim">{p.description}</p>}
+
+      <p className="mb-2 text-xs font-bold uppercase tracking-wider text-dim">⚔️ Quêtes liées · {quests.length}</p>
+      {quests.length === 0 ? (
+        <p className="mb-4 text-sm text-dim">
+          Aucune quête ouverte. Rattache une quête depuis sa fiche (champ « Projet ») ou à la création.
+        </p>
+      ) : (
+        <ul className="mb-4 space-y-1.5">
+          {quests.map((q) => (
+            <li key={q.id} className="flex items-center justify-between rounded-xl bg-well px-3 py-2 text-sm">
+              <span className={`min-w-0 flex-1 truncate ${q.done ? "text-dim line-through" : ""}`}>{q.name}</span>
+              <span className="ml-2 shrink-0 text-xs font-bold text-xp-soft">+{q.xp}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <p className="mb-2 text-xs font-bold uppercase tracking-wider text-dim">Changer le statut</p>
       <div className="grid grid-cols-2 gap-2">
@@ -104,7 +120,8 @@ function CompactList({ title, projects, onOpen }: { title: string; projects: Pro
   );
 }
 
-export function ProjectsPanel({ projects }: { projects: Project[] }) {
+export function ProjectsPanel({ projects, quests = [] }: { projects: Project[]; quests?: Quest[] }) {
+  const questsOf = (id: string) => quests.filter((q) => q.projectId === id);
   const [openId, setOpenId] = useState<string | null>(null);
   const opened = projects.find((p) => p.id === openId) ?? null;
   const active = projects.filter((p) => p.status === PROJECT_STATUS.active);
@@ -117,7 +134,7 @@ export function ProjectsPanel({ projects }: { projects: Project[] }) {
         <ul className="space-y-3">
           {active.map((p) => (
             <li key={p.id}>
-              <ProjectCard p={p} onOpen={() => setOpenId(p.id)} />
+              <ProjectCard p={p} openQuests={questsOf(p.id).filter((q) => !q.done).length} onOpen={() => setOpenId(p.id)} />
             </li>
           ))}
         </ul>
@@ -132,7 +149,7 @@ export function ProjectsPanel({ projects }: { projects: Project[] }) {
         projects={projects.filter((p) => p.status === PROJECT_STATUS.idea)}
         onOpen={setOpenId}
       />
-      {opened && <ProjectSheet p={opened} onClose={() => setOpenId(null)} />}
+      {opened && <ProjectSheet p={opened} quests={questsOf(opened.id)} onClose={() => setOpenId(null)} />}
     </>
   );
 }

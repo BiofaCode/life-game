@@ -10,6 +10,7 @@ import {
   buyReward,
   createJournalEntry,
   createReward,
+  createSubQuest,
   InsufficientCoins,
   saveSubscription,
   createQuest,
@@ -19,6 +20,7 @@ import {
   setProjectProgress,
   setProjectStatus,
   setQuestDone,
+  setQuestProject,
   updateQuest,
 } from "@/lib/notion";
 import { MOODS, QUEST_PRIORITIES, QUEST_STATUS, QUEST_ZONES, REWARD_CATEGORIES } from "@/lib/notion-types";
@@ -67,15 +69,17 @@ export async function addQuest(_prev: ActionResult | null, form: FormData): Prom
   const zone = String(form.get("zone") ?? "");
   const xp = Math.round(Number(form.get("xp")));
   const due = String(form.get("due") ?? "");
+  const projectId = String(form.get("project") ?? "");
 
   if (!name) return { ok: false, error: "Donne un nom à la quête." };
   if (!(QUEST_PRIORITIES as readonly string[]).includes(priority)) return { ok: false, error: "Priorité invalide." };
   if (zone && !(QUEST_ZONES as readonly string[]).includes(zone)) return { ok: false, error: "Zone invalide." };
   if (!Number.isFinite(xp) || xp < 0 || xp > 10_000) return { ok: false, error: "XP invalide." };
   if (due && !DATE.test(due)) return { ok: false, error: "Date invalide." };
+  if (projectId && !UUID.test(projectId)) return { ok: false, error: "Projet invalide." };
 
   try {
-    await createQuest({ name, priority, zone: zone || null, xp, due: due || null });
+    await createQuest({ name, priority, zone: zone || null, xp, due: due || null, projectId: projectId || null });
   } catch (e) {
     console.error("addQuest", e);
     return { ok: false, error: "Impossible de créer la quête dans Notion." };
@@ -198,4 +202,17 @@ export async function sendTestPush(): Promise<ActionResult> {
     console.error("sendTestPush", e);
     return { ok: false, error: "Envoi impossible." };
   }
+}
+
+export async function addSubQuest(parentId: string, name: string, xp: number): Promise<ActionResult> {
+  const clean = String(name).trim().slice(0, 200);
+  if (!clean) return { ok: false, error: "Donne un nom à la sous-quête." };
+  const x = Math.round(Number(xp));
+  if (!Number.isFinite(x) || x < 0 || x > 10_000) return { ok: false, error: "XP invalide." };
+  return run(parentId, () => createSubQuest(parentId, clean, x));
+}
+
+export async function linkQuestProject(pageId: string, projectId: string | null): Promise<ActionResult> {
+  if (projectId !== null && !UUID.test(projectId)) return { ok: false, error: "Projet invalide" };
+  return run(pageId, () => setQuestProject(pageId, projectId));
 }

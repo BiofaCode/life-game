@@ -1,9 +1,10 @@
 "use client";
 
-import { useTransition } from "react";
-import { setQuestDue, setQuestStatus, type ActionResult } from "@/app/actions";
+import { useState, useTransition } from "react";
+import { addSubQuest, linkQuestProject, setQuestDue, setQuestStatus, type ActionResult } from "@/app/actions";
 import { addDays, formatDate, relativeDue, zoneEmoji } from "@/lib/format";
 import { QUEST_STATUS, type Quest } from "@/lib/notion-types";
+import { Check } from "./Check";
 import { Sheet } from "./Sheet";
 import { toast } from "./Toast";
 
@@ -22,14 +23,39 @@ export function QuestDetails({
   done,
   onToggle,
   onClose,
+  subQuests,
+  onToggleSub,
+  onOpenParent,
+  projects = [],
 }: {
   quest: Quest;
   today: string;
   done: boolean;
   onToggle: () => void;
   onClose: () => void;
+  /** Sous-quêtes ouvertes ou terminées aujourd'hui (les plus anciennes ne sont pas chargées). */
+  subQuests: { quest: Quest; done: boolean }[];
+  onToggleSub: (q: Quest) => void;
+  onOpenParent?: () => void;
+  projects?: { id: string; name: string }[];
 }) {
   const [pending, startTransition] = useTransition();
+  const [subName, setSubName] = useState("");
+  const [subXp, setSubXp] = useState(5);
+  const olderDone = Math.max(0, q.subCount - subQuests.length);
+
+  function createSub(e: React.FormEvent) {
+    e.preventDefault();
+    const name = subName.trim();
+    if (!name) return;
+    startTransition(async () => {
+      const res = await addSubQuest(q.id, name, subXp);
+      if (res.ok) {
+        setSubName("");
+        toast("🧩 Sous-quête ajoutée");
+      } else toast(res.error ?? "Erreur", "error");
+    });
+  }
 
   function act(fn: () => Promise<ActionResult>, ok: string) {
     startTransition(async () => {
@@ -59,10 +85,95 @@ export function QuestDetails({
           </Row>
         )}
         <Row label="Échéance">{q.due ? `${relativeDue(q.due, today)} · ${formatDate(q.due)}` : "Aucune"}</Row>
+        {projects.length > 0 && (
+          <Row label="Projet">
+            <select
+              value={q.projectId ?? ""}
+              disabled={pending}
+              onChange={(e) => {
+                const v = e.target.value || null;
+                startTransition(async () => {
+                  const res = await linkQuestProject(q.id, v);
+                  if (!res.ok) toast(res.error ?? "Erreur", "error");
+                  else toast(v ? "🚀 Quête rattachée au projet" : "Quête détachée du projet");
+                });
+              }}
+              className="max-w-[12rem] rounded-lg border border-edge bg-well px-2 py-1 text-right text-sm"
+            >
+              <option value="">— Aucun —</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </Row>
+        )}
         <Row label="Récompense">
           <span className="text-xp-soft">+{q.xp} XP</span>
         </Row>
       </div>
+
+      {onOpenParent && (
+        <button type="button" onClick={onOpenParent} className="mb-4 text-sm text-xp-soft underline underline-offset-4">
+          ↖︎ Voir la quête parente
+        </button>
+      )}
+
+      {!q.parentId && (
+        <div className="mb-4">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-dim">
+            🧩 Sous-quêtes{q.subCount > 0 ? ` · ${q.subCount - subQuests.filter((s) => !s.done).length}/${q.subCount}` : ""}
+          </p>
+          {subQuests.length > 0 && (
+            <ul className="mb-2 space-y-1.5">
+              {subQuests.map(({ quest: k, done: kd }) => (
+                <li key={k.id}>
+                  <button
+                    type="button"
+                    onClick={() => onToggleSub(k)}
+                    aria-pressed={kd}
+                    className="flex w-full items-center gap-3 rounded-xl bg-well px-3 py-2.5 text-left text-sm active:scale-[0.99]"
+                  >
+                    <Check done={kd} />
+                    <span className={`min-w-0 flex-1 ${kd ? "text-dim line-through" : ""}`}>{k.name}</span>
+                    <span className="text-xs font-bold text-xp-soft">+{k.xp}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {olderDone > 0 && <p className="mb-2 text-xs text-dim">+ {olderDone} déjà terminée{olderDone > 1 ? "s" : ""} avant aujourd&apos;hui</p>}
+          <form onSubmit={createSub} className="flex gap-2">
+            <input
+              value={subName}
+              onChange={(e) => setSubName(e.target.value)}
+              maxLength={200}
+              placeholder="Ajouter une sous-quête…"
+              className="min-w-0 flex-1 rounded-xl border border-edge bg-well px-3 py-2.5 text-base outline-none focus:border-xp"
+            />
+            <select
+              value={subXp}
+              onChange={(e) => setSubXp(Number(e.target.value))}
+              aria-label="XP de la sous-quête"
+              className="rounded-xl border border-edge bg-well px-2 text-sm"
+            >
+              {[5, 10, 15, 25].map((v) => (
+                <option key={v} value={v}>
+                  +{v}
+                </option>
+              ))}
+            </select>
+            <button
+              disabled={pending || !subName.trim()}
+              className="rounded-xl bg-xp px-4 font-bold text-xp-ink disabled:opacity-40"
+              aria-label="Ajouter la sous-quête"
+            >
+              +
+            </button>
+          </form>
+        </div>
+      )}
 
       {q.notes && (
         <p className="mb-4 whitespace-pre-line rounded-xl bg-well p-3 text-sm text-dim">{q.notes}</p>

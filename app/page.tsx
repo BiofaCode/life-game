@@ -65,24 +65,30 @@ export default async function Home() {
   const pendingXp = Math.max(0, Math.round(earnedToday - (xp?.today ?? 0)));
   const bestHabit = habits?.reduce<(typeof habits)[number] | null>((b, h) => (!b || h.best > b.best ? h : b), null);
 
+  // Projets auxquels on peut rattacher une quête (en cours, puis idées/pause).
+  const projectRefs = (projects ?? [])
+    .filter((p) => p.status === PROJECT_STATUS.active)
+    .concat((projects ?? []).filter((p) => p.status !== PROJECT_STATUS.active))
+    .map((p) => ({ id: p.id, name: p.name }));
+
   const todayTab = (
     <>
       {quests && habits && <DailyGoal quests={quests} habits={habits} today={today} />}
       <Section title={`⚔️ Quêtes${quests ? ` · ${questsDone} faite${questsDone > 1 ? "s" : ""}` : ""}`}>
-        {quests ? <QuestBoard quests={quests} today={today} /> : <ErrorCard what="les quêtes" />}
+        {quests ? <QuestBoard quests={quests} today={today} projects={projectRefs} /> : <ErrorCard what="les quêtes" />}
       </Section>
       <Section title={`🔥 Habitudes${habits ? ` · ${habitsDone}/${habits.length}` : ""}`}>
         {habits ? <HabitList habits={habits} /> : <ErrorCard what="les habitudes" />}
       </Section>
       {quests && habits && xp && <CloseDay quests={quests} habits={habits} journalToday={xp.today} pendingXp={pendingXp} />}
-      <AddQuest today={today} />
+      <AddQuest today={today} projects={projectRefs} />
     </>
   );
 
   const activeProjects = projects?.filter((p) => p.status === PROJECT_STATUS.active).length ?? 0;
   const projectsTab = (
     <Section title={`🚀 Projets en cours${projects ? ` · ${activeProjects}` : ""}`}>
-      {projects ? <ProjectsPanel projects={projects} /> : <ErrorCard what="les projets" />}
+      {projects ? <ProjectsPanel projects={projects} quests={quests ?? []} /> : <ErrorCard what="les projets" />}
     </Section>
   );
 

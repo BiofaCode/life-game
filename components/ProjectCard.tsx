@@ -10,7 +10,7 @@ function deadline(p: Project): { text: string; tone: string } | null {
   return { text: `J-${p.daysLeft}`, tone: "text-dim" };
 }
 
-export function ProjectCard({ p, onOpen }: { p: Project; onOpen: () => void }) {
+export function ProjectCard({ p, onOpen, openQuests = 0 }: { p: Project; onOpen: () => void; openQuests?: number }) {
   const dl = deadline(p);
   return (
     <article className={`rounded-2xl border bg-panel p-4 ${p.overdue ? "border-danger/70" : "border-edge"}`}>
@@ -27,7 +27,14 @@ export function ProjectCard({ p, onOpen }: { p: Project; onOpen: () => void }) {
             )}
             {p.name}
           </h3>
-          {p.zone && <p className="text-xs text-dim">{p.zone}</p>}
+          <p className="text-xs text-dim">
+            {p.zone ?? ""}
+            {openQuests > 0 && (
+              <button type="button" onClick={onOpen} className="ml-1 font-semibold text-xp-soft">
+                · ⚔️ {openQuests} quête{openQuests > 1 ? "s" : ""}
+              </button>
+            )}
+          </p>
         </div>
         <button
           type="button"
