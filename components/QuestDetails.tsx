@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { addSubQuest, setQuestDue, setQuestStatus, type ActionResult } from "@/app/actions";
+import { addSubQuest, linkQuestProject, setQuestDue, setQuestStatus, type ActionResult } from "@/app/actions";
 import { addDays, formatDate, relativeDue, zoneEmoji } from "@/lib/format";
 import { QUEST_STATUS, type Quest } from "@/lib/notion-types";
 import { Check } from "./Check";
@@ -26,6 +26,7 @@ export function QuestDetails({
   subQuests,
   onToggleSub,
   onOpenParent,
+  projects = [],
 }: {
   quest: Quest;
   today: string;
@@ -36,6 +37,7 @@ export function QuestDetails({
   subQuests: { quest: Quest; done: boolean }[];
   onToggleSub: (q: Quest) => void;
   onOpenParent?: () => void;
+  projects?: { id: string; name: string }[];
 }) {
   const [pending, startTransition] = useTransition();
   const [subName, setSubName] = useState("");
@@ -83,6 +85,30 @@ export function QuestDetails({
           </Row>
         )}
         <Row label="Échéance">{q.due ? `${relativeDue(q.due, today)} · ${formatDate(q.due)}` : "Aucune"}</Row>
+        {projects.length > 0 && (
+          <Row label="Projet">
+            <select
+              value={q.projectId ?? ""}
+              disabled={pending}
+              onChange={(e) => {
+                const v = e.target.value || null;
+                startTransition(async () => {
+                  const res = await linkQuestProject(q.id, v);
+                  if (!res.ok) toast(res.error ?? "Erreur", "error");
+                  else toast(v ? "🚀 Quête rattachée au projet" : "Quête détachée du projet");
+                });
+              }}
+              className="max-w-[12rem] rounded-lg border border-edge bg-well px-2 py-1 text-right text-sm"
+            >
+              <option value="">— Aucun —</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </Row>
+        )}
         <Row label="Récompense">
           <span className="text-xp-soft">+{q.xp} XP</span>
         </Row>

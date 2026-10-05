@@ -62,12 +62,26 @@ function usePref<T extends string>(key: string, initial: T, allowed: readonly T[
   return [value, set];
 }
 
-export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }) {
+export interface ProjectRef {
+  id: string;
+  name: string;
+}
+
+export function QuestBoard({
+  quests,
+  today,
+  projects = [],
+}: {
+  quests: Quest[];
+  today: string;
+  projects?: ProjectRef[];
+}) {
   const { isDone, toggle } = useOptimisticToggle(toggleQuest);
   const [openId, setOpenId] = useState<string | null>(null);
   const [view, setView] = usePref<View>("lg-q-view", "today", ["today", "all"]);
   const [sort, setSort] = usePref<Sort>("lg-q-sort", "priority", ["priority", "due", "xp"]);
-  const [zone, setZone] = useState<string>("all");
+  // "all", "z:<zone>" ou "p:<projectId>"
+  const [filter, setFilter] = useState<string>("all");
 
   const ids = new Set(quests.map((q) => q.id));
   const childrenOf = (id: string) => quests.filter((q) => q.parentId === id);
@@ -75,7 +89,11 @@ export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }
   const topLevel = quests.filter((q) => !q.parentId || !ids.has(q.parentId));
 
   const zones = [...new Set(topLevel.map((q) => q.zone).filter((z): z is string => !!z))];
-  const inZone = (q: Quest) => zone === "all" || q.zone === zone;
+  const linkedProjects = projects.filter((p) => topLevel.some((q) => q.projectId === p.id));
+  const inZone = (q: Quest) =>
+    filter === "all" ||
+    (filter.startsWith("z:") && q.zone === filter.slice(2)) ||
+    (filter.startsWith("p:") && q.projectId === filter.slice(2));
 
   const opened = quests.find((q) => q.id === openId) ?? null;
   const toggleQ = (q: Quest, d: boolean) => toggle(q.id, !d, d ? undefined : `⚔️ +${q.xp} XP`);
@@ -132,6 +150,9 @@ export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }
                   <span className={subDone === q.subCount ? "font-semibold text-ok" : "font-semibold text-xp-soft"}>
                     🧩 {subDone}/{q.subCount}
                   </span>
+                )}
+                {q.projectId && projects.find((p) => p.id === q.projectId) && (
+                  <span className="max-w-[9rem] truncate">🚀 {projects.find((p) => p.id === q.projectId)!.name}</span>
                 )}
                 {q.notes && <span title="Notes">📝</span>}
               </span>
@@ -193,13 +214,18 @@ export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }
             </select>
           </label>
         </div>
-        {zones.length > 1 && (
+        {zones.length + linkedProjects.length > 1 && (
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-            <button type="button" className={chip(zone === "all")} onClick={() => setZone("all")}>
-              Toutes zones
+            <button type="button" className={chip(filter === "all")} onClick={() => setFilter("all")}>
+              Tout
             </button>
+            {linkedProjects.map((p) => (
+              <button key={p.id} type="button" className={chip(filter === `p:${p.id}`)} onClick={() => setFilter(`p:${p.id}`)}>
+                🚀 {p.name}
+              </button>
+            ))}
             {zones.map((z) => (
-              <button key={z} type="button" className={chip(zone === z)} onClick={() => setZone(z)}>
+              <button key={z} type="button" className={chip(filter === `z:${z}`)} onClick={() => setFilter(`z:${z}`)}>
                 {zoneEmoji(z)} {z}
               </button>
             ))}
@@ -255,6 +281,7 @@ export function QuestBoard({ quests, today }: { quests: Quest[]; today: string }
           subQuests={childrenOf(opened.id).map((k) => ({ quest: k, done: isDone(k.id, k.done) }))}
           onToggleSub={(k) => toggleQ(k, isDone(k.id, k.done))}
           onOpenParent={opened.parentId && ids.has(opened.parentId) ? () => setOpenId(opened.parentId) : undefined}
+          projects={projects}
         />
       )}
     </div>

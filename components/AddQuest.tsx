@@ -34,7 +34,7 @@ function Chip({
   );
 }
 
-export function AddQuest({ today }: { today: string }) {
+export function AddQuest({ today, projects = [] }: { today: string; projects?: { id: string; name: string }[] }) {
   const [open, setOpen] = useState(false);
   const [priority, setPriority] = useState<string>("📌 Normale");
   const [xp, setXp] = useState(15);
@@ -142,6 +142,20 @@ export function AddQuest({ today }: { today: string }) {
                 ))}
               </select>
             </label>
+
+            {projects.length > 0 && (
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-dim">Projet</span>
+                <select name="project" defaultValue="" className="w-full rounded-xl border border-edge bg-well px-4 py-3 text-base">
+                  <option value="">— Aucun —</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      🚀 {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             {state && !state.ok && <p className="text-sm text-danger">{state.error}</p>}
 

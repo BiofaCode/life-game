@@ -23,6 +23,8 @@ export interface Quest {
   parentId: string | null;
   /** Nombre total de sous-quêtes (toutes, y compris terminées). */
   subCount: number;
+  /** Projet auquel la quête est rattachée. */
+  projectId: string | null;
 }
 
 export interface DayXp {
@@ -105,6 +107,7 @@ export const QUEST_ZONES = [
 ] as const;
 
 export interface NewQuest {
+  projectId?: string | null;
   name: string;
   priority: string;
   zone: string | null;

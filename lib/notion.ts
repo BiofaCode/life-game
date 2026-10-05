@@ -230,6 +230,7 @@ export async function getQuests(): Promise<Quest[]> {
           url: r.url,
           parentId: relation(r.props["Quête parente"])[0] ?? null,
           subCount: relation(r.props["Sous-quêtes"]).length,
+          projectId: relation(r.props["Projet"])[0] ?? null,
         },
       };
     })
@@ -393,6 +394,7 @@ export async function createQuest(q: NewQuest & { parentId?: string }): Promise<
       ...(q.zone ? { Zone: { select: { name: q.zone } } } : {}),
       ...(q.due ? { "Échéance": { date: { start: q.due } } } : {}),
       ...(q.parentId ? { "Quête parente": { relation: [{ id: q.parentId }] } } : {}),
+      ...(q.projectId ? { Projet: { relation: [{ id: q.projectId }] } } : {}),
     },
   });
 }
@@ -407,6 +409,7 @@ export async function createSubQuest(parentId: string, name: string, xp: number)
     zone: select(parent["Zone"]),
     due: null,
     parentId,
+    projectId: relation(parent["Projet"])[0] ?? null,
   });
 }
 
@@ -589,4 +592,14 @@ export async function saveSubscription(
 
 export async function deleteSubscription(pageId: string): Promise<void> {
   await notion().pages.update({ page_id: pageId, in_trash: true });
+}
+
+/** Rattache une quête à un projet (ou la détache avec null). */
+export async function setQuestProject(pageId: string, projectId: string | null): Promise<void> {
+  await retrieveIn(pageId, DATA_SOURCES.quests);
+  if (projectId) await retrieveIn(projectId, DATA_SOURCES.projects);
+  await notion().pages.update({
+    page_id: pageId,
+    properties: { Projet: { relation: projectId ? [{ id: projectId }] : [] } },
+  });
 }
