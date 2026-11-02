@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mes concours</title>
+<style>
+  :root {
+    --fond: #f6f4ef; --carte: #ffffff; --texte: #1d211f; --doux: #646b66;
+    --ligne: #e3dfd6; --accent: #1f6f4a; --accent-texte: #ffffff;
+    --alerte: #b3261e; --alerte-fond: #fbeae8; --or: #a86b00; --or-fond: #fff3d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fond: #141716; --carte: #1d2120; --texte: #ecefed; --doux: #9aa39e;
+      --ligne: #2e3432; --accent: #4fb987; --accent-texte: #0e1a14;
+      --alerte: #ff8a80; --alerte-fond: #3a1f1d; --or: #f0b84a; --or-fond: #352a12;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--texte);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .sous-titre { color: var(--doux); margin: 0 0 20px; }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 20px; max-width: 480px; }
+  .stat { background: var(--carte); border: 1px solid var(--ligne); border-radius: 10px;
+          padding: 8px 10px; }
+  .stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+  .stat span { color: var(--doux); font-size: 13px; white-space: nowrap; }
+  form.ajout { display: flex; gap: 8px; margin-bottom: 20px; }
+  form.ajout input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 8px;
+                     border: 1px solid var(--ligne); background: var(--carte); color: var(--texte); font: inherit; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; padding: 8px 12px;
+           border: 1px solid var(--ligne); background: var(--carte); color: var(--texte); }
+  button.principal { background: var(--accent); color: var(--accent-texte); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .onglets { display: flex; gap: 4px; border-bottom: 1px solid var(--ligne); margin-bottom: 16px; overflow-x: auto; }
+  .onglets button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none;
+                    color: var(--doux); padding: 8px 10px; white-space: nowrap; }
+  .onglets button[aria-selected="true"] { color: var(--texte); border-bottom-color: var(--accent); font-weight: 600; }
+  .carte { background: var(--carte); border: 1px solid var(--ligne); border-radius: 12px;
+           padding: 16px; margin-bottom: 12px; }
+  .carte h2 { font-size: 17px; margin: 0 0 6px; overflow-wrap: anywhere; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  .pastille { font-size: 12.5px; padding: 2px 8px; border-radius: 999px; background: var(--fond);
+              border: 1px solid var(--ligne); color: var(--doux); }
+  .pastille.urgent { background: var(--or-fond); color: var(--or); border-color: transparent; }
+  .resume { margin: 0 0 8px; }
+  ol.etapes { margin: 0 0 10px; padding-left: 20px; color: var(--doux); }
+  .arnaque { background: var(--alerte-fond); color: var(--alerte); border-radius: 8px;
+             padding: 8px 10px; margin-bottom: 10px; font-size: 14px; }
+  .raison { color: var(--doux); font-size: 14px; margin-bottom: 8px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .vide { color: var(--doux); text-align: center; padding: 40px 0; }
+  .message { position: fixed; left: 16px; right: 16px; bottom: 16px; max-width: 520px; margin: 0 auto;
+             background: var(--texte); color: var(--fond); padding: 10px 14px; border-radius: 10px;
+             opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .message.visible { opacity: 1; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Mes concours</h1>
+  <p class="sous-titre">L'agent trouve et trie les concours. Toi, tu vérifies et tu cliques sur « Envoyer ».</p>
+
+  <div class="stats" id="stats"></div>
+
+  <form class="ajout" id="ajout">
+    <input id="url" type="url" required placeholder="Coller le lien d'un concours vu sur Instagram, Facebook…" aria-label="Lien du concours">
+    <button class="principal" type="submit">Ajouter</button>
+  </form>
+
+  <div class="onglets" role="tablist" id="onglets">
+    <button role="tab" data-statut="a_faire,nouveau" aria-selected="true">À faire</button>
+    <button role="tab" data-statut="participe">Participé</button>
+    <button role="tab" data-statut="gagne">Gagnés</button>
+    <button role="tab" data-statut="ignore,expire">Écartés</button>
+  </div>
+
+  <div id="liste"></div>
+</main>
+<div class="message" id="message" role="status"></div>
+
+<script>
+const TYPES = { formulaire: "Formulaire", reseau_social: "Réseau social", email: "E-mail",
+                sms: "SMS", achat: "Achat", autre: "À voir" };
+let ongletActif = "a_faire,nouveau";
+
+function el(balise, attrs = {}, ...enfants) {
+  const e = document.createElement(balise);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v; else if (k.startsWith("on")) e[k] = v; else e.setAttribute(k, v);
+  }
+  for (const enfant of enfants) if (enfant != null && enfant !== false) e.append(enfant);
+  return e;
+}
+
+function message(texte) {
+  const m = document.getElementById("message");
+  m.textContent = texte; m.classList.add("visible");
+  clearTimeout(m._t); m._t = setTimeout(() => m.classList.remove("visible"), 3500);
+}
+
+async function api(chemin, corps) {
+  const options = corps === undefined ? {} : {
+    method: "POST", body: JSON.stringify(corps),
+    headers: { "Content-Type": "application/json", "X-Concours-Agent": "1" } };
+  const r = await fetch(chemin, options);
+  const donnees = await r.json();
+  if (!r.ok) throw new Error(donnees.erreur || "Erreur");
+  return donnees;
+}
+
+function joursRestants(dateFin) {
+  if (!dateFin) return null;
+  const fin = new Date(dateFin + "T23:59:59");
+  return Math.ceil((fin - new Date()) / 86400000);
+}
+
+function carte(c) {
+  const jours = joursRestants(c.date_fin);
+  const meta = el("div", { class: "meta" },
+    el("span", { class: "pastille" }, TYPES[c.type_participation] || "À voir"),
+    c.valeur_chf != null ? el("span", { class: "pastille" }, `≈ ${Math.round(c.valeur_chf).toLocaleString("fr-CH")} CHF`) : null,
+    jours != null ? el("span", { class: "pastille" + (jours <= 3 ? " urgent" : "") },
+                       jours <= 0 ? "Dernier jour" : `Fin dans ${jours} j`) : null,
+    el("span", { class: "pastille" }, `Fiabilité ${c.score_fiabilite}/100`),
+    c.eligible === null ? el("span", { class: "pastille urgent" }, "Pays à vérifier") : null,
+  );
+  const etapes = (c.etapes || []).length ? el("ol", { class: "etapes" }, ...c.etapes.map(t => el("li", {}, t))) : null;
+  const arnaque = (c.signaux_arnaque || []).length
+    ? el("div", { class: "arnaque" }, "Attention : " + c.signaux_arnaque.join(" · ")) : null;
+
+  const actions = el("div", { class: "actions" });
+  const boutonStatut = (libelle, statut, principal = false) => el("button", {
+    class: principal ? "principal" : "",
+    onclick: async (ev) => {
+      ev.target.disabled = true;
+      try { await api(`/api/concours/${c.id}/statut`, { statut }); charger(); }
+      catch (e) { message(e.message); ev.target.disabled = false; }
+    } }, libelle);
+
+  if (c.statut === "a_faire" || c.statut === "nouveau") {
+    if (c.type_participation === "formulaire" || c.type_participation === "autre") {
+      actions.append(el("button", { class: "principal", onclick: async (ev) => {
+        ev.target.disabled = true;
+        try { await api(`/api/concours/${c.id}/preremplir`, {});
+              message("Le navigateur s'ouvre avec le formulaire pré-rempli. Vérifie, puis envoie."); }
+        catch (e) { message(e.message); }
+        ev.target.disabled = false;
+      } }, "Ouvrir et pré-remplir"));
+    } else {
+      actions.append(el("a", { href: c.url, target: "_blank", rel: "noopener noreferrer" },
+                        el("button", { class: "principal" }, "Ouvrir le concours")));
+    }
+    actions.append(boutonStatut("J'ai participé", "participe"), boutonStatut("Ignorer", "ignore"));
+  } else if (c.statut === "participe") {
+    actions.append(boutonStatut("J'ai gagné !", "gagne", true), boutonStatut("Remettre à faire", "a_faire"));
+  } else {
+    actions.append(boutonStatut("Remettre à faire", "a_faire"));
+  }
+
+  return el("article", { class: "carte" },
+    el("h2", {}, c.lot ? `${c.lot}` : c.titre),
+    meta,
+    el("p", { class: "resume" }, c.resume || c.description?.slice(0, 280) || ""),
+    etapes, arnaque,
+    c.raison_ignore ? el("div", { class: "raison" }, "Écarté : " + c.raison_ignore) : null,
+    el("div", { class: "raison" }, el("a", { href: c.url, target: "_blank", rel: "noopener noreferrer" }, c.titre),
+       ` — ${c.source}`),
+    actions);
+}
+
+async function charger() {
+  const { concours, stats } = await api(`/api/concours?statut=${ongletActif}`);
+  const s = document.getElementById("stats");
+  s.replaceChildren(
+    ...[["À faire", stats.a_faire], ["Participé", stats.participe], ["Gagnés", stats.gagne],
+        ["Écartés", stats.ignore + stats.expire]]
+      .map(([l, n]) => el("div", { class: "stat" }, el("b", {}, String(n)), el("span", {}, l))));
+  const liste = document.getElementById("liste");
+  liste.replaceChildren(...(concours.length ? concours.map(carte)
+    : [el("p", { class: "vide" }, "Rien ici pour l'instant. Lance « python -m concours quotidien » ou ajoute un lien.")]));
+}
+
+document.getElementById("onglets").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#onglets button").forEach(x => x.setAttribute("aria-selected", String(x === b)));
+  ongletActif = b.dataset.statut; charger();
+});
+
+document.getElementById("ajout").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const champ = document.getElementById("url"), bouton = ev.target.querySelector("button");
+  bouton.disabled = true; message("Analyse du concours…");
+  try {
+    const c = await api("/api/ajouter", { url: champ.value });
+    champ.value = "";
+    message(c.statut === "a_faire" ? "Ajouté à ta liste." : `Ajouté, mais écarté : ${c.raison_ignore || c.statut}`);
+    charger();
+  } catch (e) { message(e.message); }
+  bouton.disabled = false;
+});
+
+charger();
+</script>
+</body>
+</html>

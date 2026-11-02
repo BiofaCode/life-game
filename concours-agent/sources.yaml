@@ -1,0 +1,29 @@
+# Sources surveillées par la commande `veille`.
+#
+# Types :
+#   rss   : flux RSS ou Atom (le plus fiable ; beaucoup de sites WordPress
+#           ont un flux à l'adresse /feed/)
+#   html  : page qui liste des concours, lue avec des sélecteurs CSS
+#
+# Les adresses ci-dessous sont des EXEMPLES À VÉRIFIER : je n'ai pas pu les
+# tester (réseau fermé pendant le développement). Teste chaque source avec
+#   python -m concours tester-source <nom>
+# puis passe `actif: true` quand elle renvoie bien des concours.
+
+sources:
+  - nom: exemple-rss
+    type: rss
+    url: https://www.exemple-concours.ch/feed/
+    actif: false
+
+  - nom: exemple-html
+    type: html
+    url: https://www.exemple-concours.fr/concours/
+    actif: false
+    selecteur_item: article          # un bloc par concours
+    selecteur_titre: h2
+    selecteur_lien: a                # premier lien du bloc
+    selecteur_description: p         # facultatif
+
+  # Les marques suisses publient souvent leurs concours sur une page fixe.
+  # Tu peux ajouter cette page en type html.

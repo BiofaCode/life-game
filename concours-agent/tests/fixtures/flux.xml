@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<channel>
+  <title>Exemple de flux de concours</title>
+  <item>
+    <title>Gagne un week-end à Zermatt d'une valeur de CHF 1'200</title>
+    <link>https://exemple.ch/concours/zermatt?utm_source=rss</link>
+    <description><![CDATA[<p>Remplis le formulaire pour tenter ta chance. Ouvert aux personnes résidant en Suisse.
+    Participation gratuite et sans obligation d'achat. Jusqu'au 15 décembre 2026. Règlement complet sur le site.</p>]]></description>
+  </item>
+  <item>
+    <title>Concours : une trottinette électrique (499 €)</title>
+    <link>https://exemple.fr/trottinette</link>
+    <description>Jeu réservé aux résidents de France métropolitaine. Inscrivez-vous via le formulaire avant le 30/11/2026.</description>
+  </item>
+  <item>
+    <title>FÉLICITATIONS vous avez été sélectionné pour un iPhone</title>
+    <link>https://exemple.net/iphone</link>
+    <description>Félicitations, vous avez gagné ! Payez seulement les frais de livraison de 2 CHF pour recevoir votre lot : bit.ly/xyz. Entrez votre carte bancaire.</description>
+  </item>
+</channel>
+</rss>

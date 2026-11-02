@@ -1,0 +1,38 @@
+# Copie ce fichier en config.yaml puis remplis-le.
+# config.yaml contient tes données perso : il est ignoré par git.
+
+profil:
+  civilite: ""          # M. / Mme
+  prenom: ""
+  nom: ""
+  email: ""             # conseil : une adresse dédiée aux concours
+  telephone: ""         # format +41 79 123 45 67
+  date_naissance: ""    # JJ/MM/AAAA
+  adresse: ""           # rue et numéro
+  npa: ""               # code postal
+  ville: ""
+  pays: "Suisse"
+
+preferences:
+  pays_residence: "CH"          # CH, FR, BE, LU, CA
+  valeur_min: 0                 # ignorer les lots qui valent moins (en CHF)
+  taux_eur_chf: 0.94            # pour comparer les lots en euros
+  accepter_achat_obligatoire: false
+  accepter_sms_payant: false
+  exclure_mots:                 # concours ignorés s'ils contiennent ces mots
+    - casino
+    - paris sportifs
+    - crypto
+
+ia:
+  activer: true                 # false = tri par règles simples, sans API
+  modele: claude-opus-5-5
+  effort: low                   # low suffit pour lire un règlement
+  max_caracteres_page: 40000    # taille max du texte de page envoyé à Claude
+
+navigateur:
+  dossier_profil: donnees/navigateur   # garde tes connexions entre deux sessions
+  chemin_chromium: ""                  # vide = Chromium installé par Playwright
+
+tableau:
+  port: 8765

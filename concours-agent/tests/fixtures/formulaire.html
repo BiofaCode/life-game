@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Concours test</title></head>
+<body>
+<h1>Grand concours</h1>
+<form id="f" action="/merci" method="post" onsubmit="window.__envoye = true; return false;">
+  <label for="civ">Civilité</label>
+  <select id="civ" name="civilite"><option value="">Choisir</option><option value="m">M.</option><option value="mme">Mme</option></select>
+  <label for="p">Prénom *</label><input id="p" name="firstname">
+  <label for="n">Nom *</label><input id="n" name="lastname">
+  <label>Votre adresse e-mail <input name="champ_3" type="text"></label>
+  <input name="tel" type="tel" placeholder="Téléphone">
+  <label for="dn">Date de naissance</label><input id="dn" name="birthdate" type="date">
+  <label for="rue">Adresse</label><input id="rue" name="street">
+  <label for="cp">NPA</label><input id="cp" name="zip">
+  <label for="v">Localité</label><input id="v" name="city">
+  <label for="pays">Pays</label>
+  <select id="pays" name="country"><option>France</option><option>Suisse</option><option>Belgique</option></select>
+  <input name="token" type="hidden" value="abc">
+  <input name="cache" style="display:none">
+  <label><input type="checkbox" name="reglement"> J'accepte le règlement</label>
+  <label><input type="checkbox" name="newsletter"> Je veux la newsletter</label>
+  <label for="q">Pourquoi veux-tu gagner ?</label><textarea id="q" name="question"></textarea>
+  <button type="submit">Envoyer</button>
+</form>
+</body></html>
